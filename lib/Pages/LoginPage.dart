@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http; 
+import 'package:http/http.dart' as http;
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firstproj/Pages/DashboardPage.dart' as dashboardPage;
+import 'package:firstproj/Pages/TokenUtils.dart';
+import 'package:firstproj/main.dart'; // Import the main.dart file
 
 void main() {
   runApp(LawApp());
@@ -31,6 +35,7 @@ class DashboardPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // key: scaffoldMessengerKey, // Connect Scaffold to the scaffoldMessengerKey
       appBar: AppBar(
         title: const Text('Dashboard'),
       ),
@@ -57,6 +62,13 @@ class _AnimatedLoginPageState extends State<AnimatedLoginPage>
   String _username = '';
   String _password = '';
   String _email = ''; // Email for sign-up
+  final String _role = ''; // New field
+  String _fullName = ''; // New field
+  String _phoneNumber = ''; // New field
+  String _membershipNumber = ''; // New field
+  String _judgeNumber = ''; // New field (appears only for Judge role)
+  String _idNumber = ''; // New field
+  String _bio = ''; // New field
   late AnimationController _animationController;
   late Animation<double> _animation;
   bool _isSignUp = false; // Track if user is signing up
@@ -64,6 +76,7 @@ class _AnimatedLoginPageState extends State<AnimatedLoginPage>
   @override
   void initState() {
     super.initState();
+    TokenUtils.checkTokenExpiration(context);
     _animationController = AnimationController(
       duration: const Duration(seconds: 2),
       vsync: this,
@@ -87,105 +100,155 @@ class _AnimatedLoginPageState extends State<AnimatedLoginPage>
     });
   }
 
-Future<void> _signup(String username, String password, String email) async {
-  try {
-    final response = await http.post(
-      Uri.parse('http://10.0.2.2:3000/insert_record/insert_record'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'username': username,
-        'password': password,
-        'email': email,
-      }),
-    );
-
-    print('Response Status Code: ${response.statusCode}');
-    print('Response Body: ${response.body}');
-
-    // Check if the response status is 201 (Created)
-    if (response.statusCode == 201) {
-      final result = jsonDecode(response.body); // Define result here
-      if (result['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign-Up Successful!')),
-        );
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      } else {
-        // Show the error message returned by backend
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sign-Up Failed: ${result['message']}')),
-        );
-      }
-    }else if (response.statusCode == 400) {
-      final result = jsonDecode(response.body);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${result['message']}')), // Show the backend message
-      );
-    } else {
-      // If status code is not 201, show a general error message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Server error, please try again later.')),
-      );
-    }
-  } catch (e) {
-    print('Error during request: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Error: Could not connect to server.')),
-    );
-  }
-}
-
-  Future<void> _login(String username, String password) async {
+  Future<void> _signup() async {
     try {
-      print('Starting login request...'); // Debugging log
-
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:3000/login/login'),
-        headers: {
-          'Content-Type': 'application/json'
-        }, // Changed to application/json
+        Uri.parse('http://10.0.2.2:4000/insert_record/insert_record'),
+        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'username': username,
-          'password': password,
+          'username': _username,
+          'password': _password,
+          'email': _email,
+          'role': _role,
+          'fullName': _fullName,
+          'phoneNumber': _phoneNumber,
+          'membershipNumber': _membershipNumber,
+          'judgeNumber': _judgeNumber,
+          'idNumber': _idNumber,
+          'bio': _bio,
         }),
       );
 
-      print('Response received: ${response.statusCode}');
-      print('Response body: ${response.body}');
+      if (response.statusCode == 201) {
+        final result = jsonDecode(response.body);
+        if (result['success'] == true) {
+          var box = await Hive.openBox('userBox');
+          await box.put('token', result['token']);
+          final expirationTime = DateTime.now().add(Duration(minutes: 1));
+          await box.put('token_expiration', expirationTime.toIso8601String());
 
-      if (response.statusCode == 200) {
-        try {
-          final result = jsonDecode(response.body);
-
-          if (result['success'] == true) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Login Successful!')),
-            );
-            Navigator.pushReplacementNamed(context, '/dashboard');
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Invalid Username or Password')),
-            );
+          if (ScaffoldMessenger.of(context).mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (ScaffoldMessenger.maybeOf(context) != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Sign-Up Successful!')),
+                );
+              }
+            });
           }
-        } catch (e) {
-          print('Error decoding JSON: $e');
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Error: Invalid response format')),
-          );
+          Future.delayed(const Duration(seconds: 2), () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const dashboardPage.DashboardPage()),
+            );
+          });
+        } else {
+          if (ScaffoldMessenger.of(context).mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (ScaffoldMessenger.maybeOf(context) != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text('Sign-Up Failed: ${result['message']}')),
+                );
+              }
+            });
+          }
         }
       } else {
-        print('Failed to login. Status Code: ${response.statusCode}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Server error, please try again later.')),
-        );
+        if (ScaffoldMessenger.of(context).mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (ScaffoldMessenger.maybeOf(context) != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Server error, please try again later.')),
+              );
+            }
+          });
+        }
       }
     } catch (e) {
-      print('Error during request: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('An error occurred. Please try again later.')),
+      if (ScaffoldMessenger.of(context).mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (ScaffoldMessenger.maybeOf(context) != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Error: Could not connect to server.')),
+            );
+          }
+        });
+      }
+    }
+  }
+
+  Future<void> _login() async {
+    try {
+      final response = await http.post(
+        Uri.parse('http://10.0.2.2:4000/login/login'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'username': _username,
+          'password': _password,
+        }),
       );
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+
+        if (result['success'] == true) {
+          var box = await Hive.openBox('userBox');
+          await box.put('token', result['token']);
+          final expirationTime = DateTime.now().add(Duration(minutes: 1));
+          await box.put('token_expiration', expirationTime.toIso8601String());
+          if (ScaffoldMessenger.of(context).mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (ScaffoldMessenger.maybeOf(context) != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Login Successful!')),
+                );
+              }
+            });
+          }
+          Future.delayed(const Duration(seconds: 2), () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const dashboardPage.DashboardPage()),
+            );
+          });
+        } else {
+          if (ScaffoldMessenger.of(context).mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (ScaffoldMessenger.maybeOf(context) != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Invalid Username or Password')),
+                );
+              }
+            });
+          }
+        }
+      } else {
+        if (ScaffoldMessenger.of(context).mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (ScaffoldMessenger.maybeOf(context) != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Server error, please try again later.')),
+              );
+            }
+          });
+        }
+      }
+    } catch (e) {
+      if (ScaffoldMessenger.of(context).mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (ScaffoldMessenger.maybeOf(context) != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Error during login.')),
+            );
+          }
+        });
+      }
     }
   }
 
@@ -193,9 +256,9 @@ Future<void> _signup(String username, String password, String email) async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       if (_isSignUp) {
-        _signup(_username, _password, _email);
+        _signup();
       } else {
-        _login(_username, _password);
+        _login();
       }
     }
   }
@@ -211,117 +274,212 @@ Future<void> _signup(String username, String password, String email) async {
             padding: const EdgeInsets.symmetric(horizontal: 32.0),
             child: Form(
               key: _formKey,
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const Hero(
-                    tag: 'logo',
-                    child: CircleAvatar(
-                      radius: 60,
-                      backgroundColor: Colors.indigoAccent,
-                      child: Icon(Icons.gavel, size: 60, color: Colors.white),
-                    ),
-                  ),
-                  const SizedBox(height: 40),
-                  TextFormField(
-                    key: const ValueKey('username'),
-                    decoration: InputDecoration(
-                      labelText: 'Username',
-                      filled: true,
-                      fillColor: Colors.indigo[50],
-                      prefixIcon: const Icon(Icons.person),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10.0),
-                        borderSide: BorderSide.none,
+              child: SingleChildScrollView(
+                // Ensure the form scrolls on smaller screens
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Hero(
+                      tag: 'logo',
+                      child: CircleAvatar(
+                        radius: 60,
+                        backgroundColor: Colors.indigoAccent,
+                        child: Icon(Icons.gavel, size: 60, color: Colors.white),
                       ),
                     ),
-                    validator: (value) {
-                      if (value!.isEmpty) {
-                        return 'Please enter your username';
-                      }
-                      return null;
-                    },
-                    onSaved: (value) {
-                      _username = value!;
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  TextFormField(
-                    key: const ValueKey('password'),
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      filled: true,
-                      fillColor: Colors.indigo[50],
-                      prefixIcon: const Icon(Icons.lock),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10.0),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                    obscureText: true,
-                    validator: (value) {
-                      if (value!.isEmpty) {
-                        return 'Please enter your password';
-                      }
-                      return null;
-                    },
-                    onSaved: (value) {
-                      _password = value!;
-                    },
-                  ),
-                  if (_isSignUp)
-                    Column(
-                      children: [
-                        const SizedBox(height: 20),
-                        TextFormField(
-                          key: const ValueKey('email'),
-                          decoration: InputDecoration(
-                            labelText: 'Email',
-                            filled: true,
-                            fillColor: Colors.indigo[50],
-                            prefixIcon: const Icon(Icons.email),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10.0),
-                              borderSide: BorderSide.none,
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value!.isEmpty || !value.contains('@')) {
-                              return 'Please enter a valid email';
-                            }
-                            return null;
-                          },
-                          onSaved: (value) {
-                            _email = value!;
-                          },
+                    const SizedBox(height: 20), // Reduced gap
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Username',
+                        filled: true,
+                        fillColor: Colors.indigo[50],
+                        prefixIcon: const Icon(Icons.person),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                          borderSide: BorderSide.none,
                         ),
-                      ],
-                    ),
-                  const SizedBox(height: 30),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10.0),
                       ),
-                      backgroundColor: Colors.indigo,
+                      validator: (value) {
+                        if (value!.isEmpty) {
+                          return 'Please enter your username';
+                        }
+                        return null;
+                      },
+                      onSaved: (value) {
+                        _username = value!;
+                      },
                     ),
-                    onPressed: _submit,
-                    child: Text(_isSignUp ? 'Sign Up' : 'Login'),
-                  ),
-                  const SizedBox(height: 20),
-                  GestureDetector(
-                    onTap: _toggleForm,
-                    child: Text(
-                      _isSignUp
-                          ? 'Already have an account? Login'
-                          : 'Don\'t have an account? Sign Up',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.indigo),
+                    const SizedBox(height: 10), // Reduced gap
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Password',
+                        filled: true,
+                        fillColor: Colors.indigo[50],
+                        prefixIcon: const Icon(Icons.lock),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      obscureText: true,
+                      validator: (value) {
+                        if (value!.isEmpty) {
+                          return 'Please enter your password';
+                        }
+                        return null;
+                      },
+                      onSaved: (value) {
+                        _password = value!;
+                      },
                     ),
-                  ),
-                ],
+                    if (_isSignUp)
+                      Column(
+                        children: [
+                          const SizedBox(height: 10), // Reduced gap
+                          TextFormField(
+                            decoration: InputDecoration(
+                              labelText: 'Email',
+                              filled: true,
+                              fillColor: Colors.indigo[50],
+                              prefixIcon: const Icon(Icons.email),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10.0),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            validator: (value) {
+                              if (value!.isEmpty || !value.contains('@')) {
+                                return 'Please enter a valid email';
+                              }
+                              return null;
+                            },
+                            onSaved: (value) {
+                              _email = value!;
+                            },
+                          ),
+                          const SizedBox(height: 10), // Reduced gap
+                          TextFormField(
+                            decoration: InputDecoration(
+                              labelText: 'Full Name',
+                              filled: true,
+                              fillColor: Colors.indigo[50],
+                              prefixIcon: const Icon(Icons.person),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10.0),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onSaved: (value) {
+                              _fullName = value!;
+                            },
+                          ),
+                          const SizedBox(height: 10), // Reduced gap
+                          TextFormField(
+                            decoration: InputDecoration(
+                              labelText: 'Phone Number',
+                              filled: true,
+                              fillColor: Colors.indigo[50],
+                              prefixIcon: const Icon(Icons.phone),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10.0),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onSaved: (value) {
+                              _phoneNumber = value!;
+                            },
+                          ),
+                          const SizedBox(height: 10), // Reduced gap
+                          TextFormField(
+                            decoration: InputDecoration(
+                              labelText: 'Membership Number',
+                              filled: true,
+                              fillColor: Colors.indigo[50],
+                              prefixIcon: const Icon(Icons.numbers),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10.0),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onSaved: (value) {
+                              _membershipNumber = value!;
+                            },
+                          ),
+                          const SizedBox(height: 10), // Reduced gap
+                          TextFormField(
+                            decoration: InputDecoration(
+                              labelText: 'Judge Number (Optional)',
+                              filled: true,
+                              fillColor: Colors.indigo[50],
+                              prefixIcon: const Icon(Icons.gavel),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10.0),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onSaved: (value) {
+                              _judgeNumber = value!;
+                            },
+                          ),
+                          const SizedBox(height: 10), // Reduced gap
+                          TextFormField(
+                            decoration: InputDecoration(
+                              labelText: 'ID Number',
+                              filled: true,
+                              fillColor: Colors.indigo[50],
+                              prefixIcon: const Icon(Icons.credit_card),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10.0),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onSaved: (value) {
+                              _idNumber = value!;
+                            },
+                          ),
+                          const SizedBox(height: 10), // Reduced gap
+                          TextFormField(
+                            decoration: InputDecoration(
+                              labelText: 'Bio (Optional)',
+                              filled: true,
+                              fillColor: Colors.indigo[50],
+                              prefixIcon: const Icon(Icons.person),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10.0),
+                                borderSide: BorderSide.none,
+                              ),
+                            ),
+                            onSaved: (value) {
+                              _bio = value!;
+                            },
+                          ),
+                        ],
+                      ),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _submit,
+                      style: ElevatedButton.styleFrom(
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        backgroundColor: Colors.indigo,
+                      ),
+                      child: Text(_isSignUp ? 'Sign Up' : 'Login'),
+                    ),
+                    const SizedBox(height: 20),
+                    TextButton(
+                      onPressed: _toggleForm,
+                      child: Text(
+                        _isSignUp
+                            ? 'Already have an account? Login'
+                            : 'Don\'t have an account? Sign Up',
+                        style: TextStyle(color: Colors.indigo),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

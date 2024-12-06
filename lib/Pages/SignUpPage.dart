@@ -1,6 +1,11 @@
+
 import 'package:flutter/material.dart';
-import 'dart:convert'; 
-import 'package:http/http.dart' as http; 
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:firstproj/Pages/DashboardPage.dart' as dashboardPage;
+import 'package:firstproj/Pages/TokenUtils.dart';
+import 'package:firstproj/main.dart'; // Import the main.dart file
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -14,92 +19,121 @@ class _SignUpPageState extends State<SignUpPage> {
   String _username = '';
   String _password = '';
   String _email = '';
-  bool _isSignUp = true; 
+  String _role = 'Admin'; // Default role
+  String _phoneNumber = '';
+  String _fullName = '';
+  String _membershipNumber = '';
+  String _judgeNumber = '';
+  String _idNumber = '';
+  String _bio = '';
+  bool _isSignUp = true;
 
-Future<void> _signup(String username, String password, String email) async {
-  try {
-    final response = await http.post(
-      Uri.parse('http://10.0.2.2:3000/insert_record/insert_record'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'username': username,
-        'password': password,
-        'email': email,
-      }),
-    );
+  // Add a variable to store the profile picture
+  String? _profilePicture;
 
-    print('Response Status Code: ${response.statusCode}');
-    print('Response Body: ${response.body}');
-
-    // Check if the response status is 201 (Created)
-    if (response.statusCode == 201) {
-      final result = jsonDecode(response.body); // Define result here
-      if (result['success'] == true) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Sign-Up Successful!')),
-        );
-        Navigator.pushReplacementNamed(context, '/dashboard');
-      } else {
-        // Show the error message returned by backend
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Sign-Up Failed: ${result['message']}')),
-        );
-      }
-    }else if (response.statusCode == 400) {
-      final result = jsonDecode(response.body);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${result['message']}')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Server error, please try again later.')),
-      );
-    }
-  } catch (e) {
-    print('Error during request: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Error: Could not connect to server.')),
-    );
-  }
-}
-
-
-  Future<void> _login(String username, String password) async {
+  Future<void> _signup(
+      String username,
+      String password,
+      String email,
+      String role,
+      String phoneNumber,
+      String fullName,
+      String membershipNumber,
+      String judgeNumber,
+      String idNumber,
+      String bio) async {
     try {
       final response = await http.post(
-        Uri.parse('http://10.0.2.2:3000/login/login'),
+        Uri.parse('http://10.0.2.2:4000/insert_record/insert_record'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'username': username,
           'password': password,
+          'email': email,
+          'role': role,
+          'phoneNumber': phoneNumber,
+          'fullName': fullName,
+          'membershipNumber': membershipNumber,
+          'judgeNumber': judgeNumber,
+          'idNumber': idNumber,
+          'bio': bio,
+          'profilePicture': _profilePicture, // Profile Picture URL or file data
         }),
       );
+
       print('Response Status Code: ${response.statusCode}');
       print('Response Body: ${response.body}');
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         final result = jsonDecode(response.body);
         if (result['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Login Successful!')),
-          );
-          Navigator.pushReplacementNamed(context, '/dashboard');
+          var box = await Hive.openBox('userBox');
+          await box.put('token', result['token']);
+          print('Token saved: ${result['token']}');
+          final expirationTime = DateTime.now().add(Duration(minutes: 1));
+          await box.put('token_expiration', expirationTime.toIso8601String());
+          print('Token expiration time: $expirationTime');
+          if (ScaffoldMessenger.of(context).mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Sign-Up Successful!')),
+            );
+          }
+          print('Navigating to dashboard...');
+          TokenUtils.checkTokenExpiration(context);
+          Future.delayed(const Duration(seconds: 2), () {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                  builder: (context) => const dashboardPage.DashboardPage()),
+            );
+          });
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Invalid Username or Password')),
-          );
+          if (ScaffoldMessenger.of(context).mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (ScaffoldMessenger.maybeOf(context) != null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                      content: Text('Sign-Up Failed: ${result['message']}')),
+                );
+              }
+            });
+          }
+        }
+      } else if (response.statusCode == 400) {
+        final result = jsonDecode(response.body);
+        if (ScaffoldMessenger.of(context).mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (ScaffoldMessenger.maybeOf(context) != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error: ${result['message']}')),
+              );
+            }
+          });
         }
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Server error, please try again later.')),
-        );
+        if (ScaffoldMessenger.of(context).mounted) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (ScaffoldMessenger.maybeOf(context) != null) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                    content: Text('Server error, please try again later.')),
+              );
+            }
+          });
+        }
       }
     } catch (e) {
       print('Error during request: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error: Could not connect to server.')),
-      );
+      if (ScaffoldMessenger.of(context).mounted) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (ScaffoldMessenger.maybeOf(context) != null) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                  content: Text('Error: Could not connect to server.')),
+            );
+          }
+        });
+      }
     }
   }
 
@@ -107,9 +141,20 @@ Future<void> _signup(String username, String password, String email) async {
     if (_formKey.currentState!.validate()) {
       _formKey.currentState!.save();
       if (_isSignUp) {
-        _signup(_username, _password, _email);
+        _signup(
+          _username,
+          _password,
+          _email,
+          _role,
+          _phoneNumber,
+          _fullName,
+          _membershipNumber,
+          _judgeNumber,
+          _idNumber,
+          _bio,
+        );
       } else {
-        _login(_username, _password);
+        // Add login functionality if needed
       }
     }
   }
@@ -123,6 +168,7 @@ Future<void> _signup(String username, String password, String email) async {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      // key: scaffoldMessengerKey, // Connect Scaffold to the scaffoldMessengerKey
       backgroundColor: Colors.white,
       body: Center(
         child: Padding(
@@ -141,10 +187,9 @@ Future<void> _signup(String username, String password, String email) async {
                     child: Icon(Icons.gavel, size: 60, color: Colors.white),
                   ),
                 ),
-                SizedBox(height: 40), // Removed `const` here
+                SizedBox(height: 40),
                 TextFormField(
                   decoration: InputDecoration(
-                    // Removed `const` here
                     labelText: 'Username',
                     filled: true,
                     fillColor: Colors.indigo[50],
@@ -164,10 +209,9 @@ Future<void> _signup(String username, String password, String email) async {
                     _username = value!;
                   },
                 ),
-                SizedBox(height: 20), // Removed `const` here
+                SizedBox(height: 20),
                 TextFormField(
                   decoration: InputDecoration(
-                    // Removed `const` here
                     labelText: 'Password',
                     filled: true,
                     fillColor: Colors.indigo[50],
@@ -188,58 +232,171 @@ Future<void> _signup(String username, String password, String email) async {
                     _password = value!;
                   },
                 ),
-                if (_isSignUp)
-                  Column(
-                    children: [
-                      SizedBox(height: 20), // Removed `const` here
-                      TextFormField(
-                        decoration: InputDecoration(
-                          // Removed `const` here
-                          labelText: 'Email',
-                          filled: true,
-                          fillColor: Colors.indigo[50],
-                          prefixIcon: Icon(Icons.email),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(10.0),
-                            borderSide: BorderSide.none,
-                          ),
-                        ),
-                        validator: (value) {
-                          if (value!.isEmpty || !value.contains('@')) {
-                            return 'Please enter a valid email';
-                          }
-                          return null;
-                        },
-                        onSaved: (value) {
-                          _email = value!;
-                        },
+                if (_isSignUp) ...[
+                  SizedBox(height: 20),
+                  TextFormField(
+                    decoration: InputDecoration(
+                      labelText: 'Email',
+                      filled: true,
+                      fillColor: Colors.indigo[50],
+                      prefixIcon: Icon(Icons.email),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                        borderSide: BorderSide.none,
                       ),
-                    ],
-                  ),
-                SizedBox(height: 30), // Removed `const` here
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(
-                        vertical: 16), // Removed `const` here
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10.0),
                     ),
-                    backgroundColor: Colors.indigo,
+                    validator: (value) {
+                      if (value!.isEmpty || !value.contains('@')) {
+                        return 'Please enter a valid email';
+                      }
+                      return null;
+                    },
+                    onSaved: (value) {
+                      _email = value!;
+                    },
                   ),
-                  onPressed: _submit,
-                  child: Text(_isSignUp ? 'Sign Up' : 'Login'),
-                ),
-                SizedBox(height: 20), // Removed `const` here
-                GestureDetector(
-                  onTap: _toggleForm,
-                  child: Text(
-                    _isSignUp
-                        ? 'Already have an account? Login'
-                        : 'Don\'t have an account? Sign Up',
-                    textAlign: TextAlign.center,
-                    style:
-                        TextStyle(color: Colors.indigo), // Removed `const` here
+                  SizedBox(height: 20),
+                  DropdownButtonFormField<String>(
+                    value: _role,
+                    onChanged: (newValue) {
+                      setState(() {
+                        _role = newValue!;
+                      });
+                    },
+                    items: ['Admin', 'Lawyer', 'Citizen', 'Judge']
+                        .map((role) => DropdownMenuItem<String>(
+                              value: role,
+                              child: Text(role),
+                            ))
+                        .toList(),
+                    decoration: InputDecoration(
+                      labelText: 'Role',
+                      filled: true,
+                      fillColor: Colors.indigo[50],
+                      prefixIcon: Icon(Icons.person_outline),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
                   ),
+                  SizedBox(height: 20),
+                  TextFormField(
+                    decoration: InputDecoration(
+                      labelText: 'Phone Number',
+                      filled: true,
+                      fillColor: Colors.indigo[50],
+                      prefixIcon: Icon(Icons.phone),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    keyboardType: TextInputType.phone,
+                    onSaved: (value) {
+                      _phoneNumber = value!;
+                    },
+                  ),
+                  SizedBox(height: 20),
+                  TextFormField(
+                    decoration: InputDecoration(
+                      labelText: 'Full Name',
+                      filled: true,
+                      fillColor: Colors.indigo[50],
+                      prefixIcon: Icon(Icons.account_circle),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onSaved: (value) {
+                      _fullName = value!;
+                    },
+                  ),
+                  SizedBox(height: 20),
+                  TextFormField(
+                    decoration: InputDecoration(
+                      labelText: 'Membership Number',
+                      filled: true,
+                      fillColor: Colors.indigo[50],
+                      prefixIcon: Icon(Icons.card_membership),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onSaved: (value) {
+                      _membershipNumber = value!;
+                    },
+                  ),
+                  if (_role == 'Judge') ...[
+                    SizedBox(height: 20),
+                    TextFormField(
+                      decoration: InputDecoration(
+                        labelText: 'Judge Number',
+                        filled: true,
+                        fillColor: Colors.indigo[50],
+                        prefixIcon: Icon(Icons.gavel),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                          borderSide: BorderSide.none,
+                        ),
+                      ),
+                      onSaved: (value) {
+                        _judgeNumber = value!;
+                      },
+                    ),
+                  ],
+                  SizedBox(height: 20),
+                  TextFormField(
+                    decoration: InputDecoration(
+                      labelText: 'ID Number',
+                      filled: true,
+                      fillColor: Colors.indigo[50],
+                      prefixIcon: Icon(Icons.credit_card),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    onSaved: (value) {
+                      _idNumber = value!;
+                    },
+                  ),
+                  SizedBox(height: 20),
+                  TextFormField(
+                    decoration: InputDecoration(
+                      labelText: 'Bio',
+                      filled: true,
+                      fillColor: Colors.indigo[50],
+                      prefixIcon: Icon(Icons.info),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                    maxLines: 3,
+                    onSaved: (value) {
+                      _bio = value!;
+                    },
+                  ),
+                  SizedBox(height: 20),
+                  ElevatedButton(
+                    onPressed: _submit,
+                    child: Text('Sign Up'),
+                  ),
+                ],
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(_isSignUp
+                        ? 'Already have an account?'
+                        : 'Don’t have an account?'),
+                    TextButton(
+                      onPressed: _toggleForm,
+                      child: Text(_isSignUp ? 'Login' : 'Sign Up'),
+                    ),
+                  ],
                 ),
               ],
             ),

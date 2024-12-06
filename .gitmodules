@@ -1,0 +1,6 @@
+[submodule "path/to/web-folder"]
+	path = path/to/web-folder
+	url = https://github.com/ShahdNoman/LawyerSystemFrontend.git
+[submodule "web"]
+	path = web
+	url = https://github.com/ShahdNoman/LawyerSystemFrontend.git
