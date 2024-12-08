@@ -4,7 +4,6 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'dart:async';
-import 'package:firstproj/main.dart'; // Import the main.dart file
 
 class DashboardPage extends StatefulWidget {
   const DashboardPage({super.key});

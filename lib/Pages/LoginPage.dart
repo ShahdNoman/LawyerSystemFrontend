@@ -4,7 +4,8 @@ import 'package:http/http.dart' as http;
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firstproj/Pages/DashboardPage.dart' as dashboardPage;
 import 'package:firstproj/Pages/TokenUtils.dart';
-import 'package:firstproj/main.dart'; // Import the main.dart file
+import 'package:firstproj/main.dart';
+import 'package:firstproj/Pages/AdminDashboardPage.dart' as adminDashboardPage;
 
 void main() {
   runApp(LawApp());
@@ -24,6 +25,8 @@ class LawApp extends StatelessWidget {
       routes: {
         '/': (context) => const AnimatedLoginPage(),
         '/dashboard': (context) => const DashboardPage(),
+        '/AdminDashboardPage': (context) =>
+            const adminDashboardPage.AdminDashboardPage(),
       },
     );
   }
@@ -124,7 +127,7 @@ class _AnimatedLoginPageState extends State<AnimatedLoginPage>
         if (result['success'] == true) {
           var box = await Hive.openBox('userBox');
           await box.put('token', result['token']);
-          final expirationTime = DateTime.now().add(Duration(minutes: 1));
+          final expirationTime = DateTime.now().add(Duration(hours: 1));
           await box.put('token_expiration', expirationTime.toIso8601String());
 
           if (ScaffoldMessenger.of(context).mounted) {
@@ -198,8 +201,12 @@ class _AnimatedLoginPageState extends State<AnimatedLoginPage>
         if (result['success'] == true) {
           var box = await Hive.openBox('userBox');
           await box.put('token', result['token']);
-          final expirationTime = DateTime.now().add(Duration(minutes: 1));
+          final expirationTime = DateTime.now().add(Duration(hours: 1));
           await box.put('token_expiration', expirationTime.toIso8601String());
+
+          // Extract role from the result
+          final role = result['role'];
+
           if (ScaffoldMessenger.of(context).mounted) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (ScaffoldMessenger.maybeOf(context) != null) {
@@ -209,12 +216,24 @@ class _AnimatedLoginPageState extends State<AnimatedLoginPage>
               }
             });
           }
+
+          // Navigate based on the role
           Future.delayed(const Duration(seconds: 2), () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) => const dashboardPage.DashboardPage()),
-            );
+            if (role == 'Admin') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => const adminDashboardPage
+                        .AdminDashboardPage()), // Replace with your Admin Dashboard page
+              );
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (context) =>
+                        const DashboardPage()), // Replace with your User Dashboard page
+              );
+            }
           });
         } else {
           if (ScaffoldMessenger.of(context).mounted) {

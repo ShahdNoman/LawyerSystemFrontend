@@ -116,9 +116,6 @@ ALTER TABLE `complaints`
   ADD KEY `complainant_id` (`complainant_id`),
   ADD KEY `accused_id` (`accused_id`);
 
-ALTER TABLE `tokens`
-  ADD PRIMARY KEY (`id`),
-  ADD KEY `user_id` (`user_id`);
 
 ALTER TABLE `sessions`
   ADD PRIMARY KEY (`id`),

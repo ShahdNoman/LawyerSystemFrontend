@@ -70,7 +70,7 @@ class _SignUpPageState extends State<SignUpPage> {
           var box = await Hive.openBox('userBox');
           await box.put('token', result['token']);
           print('Token saved: ${result['token']}');
-          final expirationTime = DateTime.now().add(Duration(minutes: 1));
+          final expirationTime = DateTime.now().add(Duration(hours: 1));
           await box.put('token_expiration', expirationTime.toIso8601String());
           print('Token expiration time: $expirationTime');
           if (ScaffoldMessenger.of(context).mounted) {
