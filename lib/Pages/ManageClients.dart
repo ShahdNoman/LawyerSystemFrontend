@@ -38,14 +38,13 @@ class _ManageClientsState extends State<ManageClients> {
     _timer = Timer.periodic(Duration(seconds: 30), (timer) {
       TokenUtils.checkTokenExpiration(context);
     });
-    _fetchAdminData(); 
+    _fetchAdminData();
     _fetchUsers();
     _searchController.addListener(() {
       _onSearchChanged();
     });
     // Apply filter as user types
   }
-
 
   void _onSearchChanged() {
     String searchTerm = _searchController.text.toLowerCase();
@@ -288,8 +287,7 @@ class _ManageClientsState extends State<ManageClients> {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                    builder: (context) =>
-                        const notifications.NotificationsPage()),
+                    builder: (context) => notifications.NotificationPage()),
               );
             }),
             _buildDrawerItem('Chat', Icons.chat, () {
@@ -559,7 +557,11 @@ class _ManageClientsState extends State<ManageClients> {
           IconButton(
             icon: Icon(Icons.notifications, color: blueColor),
             onPressed: () {
-              // Add notification icon logic
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => notifications.NotificationPage()),
+              );
             },
           ),
           IconButton(

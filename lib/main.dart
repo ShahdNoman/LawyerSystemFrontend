@@ -42,7 +42,7 @@ class LawApp extends StatelessWidget {
         '/ManageClients': (context) => manageClients.ManageClients(),
         '/ManageCases': (context) => manageCases.ManageCases(),
 
-        '/Notifications': (context) => const notifications.NotificationsPage(),
+        '/Notifications': (context) =>  notifications.NotificationPage(),
         '/Billing': (context) => const billing.BillingPage(),
         '/Reports': (context) => const reports.ReportsPage(),
       },

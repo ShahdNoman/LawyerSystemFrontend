@@ -8,6 +8,8 @@ import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firstproj/Pages/ManageClients.dart' as manageClients;
 import 'package:firstproj/Pages/ManageCases.dart' as manageCases;
+import 'package:firstproj/Pages/Reports.dart' as reports;
+import 'package:firstproj/Pages/Billing.dart' as billing;
 
 const Color backgroundColor = Colors.white;
 const Color lightBlueColor = Color(0xFFADD8E6);
@@ -175,13 +177,17 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     builder: (context) => manageCases.ManageCases()),
               );
             }),
-
+            _buildDrawerItem(Icons.library_books, 'Reports', () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => reports.ReportsPage()),
+              );
+            }),
             _buildDrawerItem(Icons.notifications, 'Notifications', () {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                    builder: (context) =>
-                        const notifications.NotificationsPage()),
+                    builder: (context) => notifications.NotificationPage()),
               );
             }),
             _buildDrawerItem(Icons.chat, 'Chat', () {
@@ -216,9 +222,6 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
       child: Column(
         children: [
           _buildSearchRow(),
-          // const SizedBox(height: 20),
-          // _buildGreetingCard(),
-          // const SizedBox(height: 20),
           Expanded(
             child: _buildFeatureGrid(),
           ),
@@ -247,7 +250,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           IconButton(
             icon: Icon(Icons.notifications, color: blueColor),
             onPressed: () {
-              // Add notification icon logic
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => notifications.NotificationPage()),
+              );
             },
           ),
           IconButton(
@@ -270,45 +277,117 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     );
   }
 
+  // Widget _buildFeatureGrid() {
+  //   final List<Map<String, dynamic>> features = [
+  //     {'icon': Icons.people, 'title': 'Manage Clients'},
+  //     {'icon': Icons.library_books, 'title': 'Manage Cases'},
+  //     {'icon': Icons.attach_money, 'title': 'Billing'},
+  //     {'icon': Icons.report, 'title': 'Reports'},
+  //     // Add this line
+  //   ];
+
+  //   return GridView.builder(
+  //     padding: const EdgeInsets.all(8.0),
+  //     gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+  //       crossAxisCount: 2,
+  //       crossAxisSpacing: 4.0,
+  //       mainAxisSpacing: 4.0,
+  //     ),
+  //     itemCount: features.length,
+  //     itemBuilder: (context, index) {
+  //       return Card(
+  //         color: cardColor,
+  //         shape:
+  //             RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+  //         child: InkWell(
+  //           onTap: () {
+  //             // Handle feature tap here, navigate to corresponding pages
+  //           },
+  //           child: Padding(
+  //             padding: const EdgeInsets.all(8.0),
+  //             child: Column(
+  //               mainAxisAlignment: MainAxisAlignment.center,
+  //               children: [
+  //                 Icon(features[index]['icon'], size: 40, color: blueColor),
+  //                 const SizedBox(height: 8),
+  //                 Text(
+  //                   features[index]['title'],
+  //                   style: TextStyle(fontSize: 16, color: blueColor),
+  //                   textAlign: TextAlign.center,
+  //                 ),
+  //               ],
+  //             ),
+  //           ),
+  //         ),
+  //       );
+  //     },
+  //   );
+  // }
   Widget _buildFeatureGrid() {
     final List<Map<String, dynamic>> features = [
       {'icon': Icons.people, 'title': 'Manage Clients'},
       {'icon': Icons.library_books, 'title': 'Manage Cases'},
       {'icon': Icons.attach_money, 'title': 'Billing'},
       {'icon': Icons.report, 'title': 'Reports'},
-      // Add this line
+      {'icon': Icons.notifications, 'title': 'Notifications'},
+      {'icon': Icons.settings, 'title': 'Settings'},
     ];
 
     return GridView.builder(
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(12.0),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
-        crossAxisSpacing: 4.0,
-        mainAxisSpacing: 4.0,
+        crossAxisSpacing: 12.0,
+        mainAxisSpacing: 12.0,
+        childAspectRatio: 1.2,
       ),
       itemCount: features.length,
       itemBuilder: (context, index) {
-        return Card(
-          color: cardColor,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          child: InkWell(
-            onTap: () {
-              // Handle feature tap here, navigate to corresponding pages
-            },
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(features[index]['icon'], size: 40, color: blueColor),
-                  const SizedBox(height: 8),
-                  Text(
-                    features[index]['title'],
-                    style: TextStyle(fontSize: 16, color: blueColor),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+        return AnimatedContainer(
+          duration: Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(15),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.grey.shade300,
+                blurRadius: 6.0,
+                offset: Offset(0, 3),
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                print('${features[index]['title']} tapped!');
+              },
+              borderRadius: BorderRadius.circular(15),
+              splashColor: Colors.blue.withOpacity(0.2),
+              hoverColor: Colors.blue.withOpacity(0.05),
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      features[index]['icon'],
+                      size: 50,
+                      color: Colors.blueAccent,
+                    ),
+                    const SizedBox(height: 10),
+                    Text(
+                      features[index]['title'],
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: const Color.fromARGB(255, 1, 25, 65),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),

@@ -319,7 +319,7 @@ class _ProfilePageState extends State<ProfilePage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                    builder: (context) => notifications.NotificationsPage()),
+                    builder: (context) => notifications.NotificationPage()),
               );
             },
           ),
@@ -504,7 +504,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 context,
                 MaterialPageRoute(
                     builder: (context) =>
-                        const notifications.NotificationsPage()),
+                         notifications.NotificationPage()),
               );
             }),
             _buildDrawerItem(Icons.chat, 'Chat', () {

@@ -44,6 +44,7 @@ class _ManageCasesState extends State<ManageCases> {
   String selectedStatus = 'Open'; // Declare selectedStatus here
   String errorMessage = '';
   List<dynamic> cases = [];
+  List<dynamic> selectedNotification = [];
 
   @override
   void initState() {
@@ -65,7 +66,6 @@ class _ManageCasesState extends State<ManageCases> {
 
   void _filterCases(String query) {
     if (query.isEmpty) {
-      // If search is empty, show all cases
       setState(() {
         displayedCases = cases;
       });
@@ -410,8 +410,7 @@ class _ManageCasesState extends State<ManageCases> {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                    builder: (context) =>
-                        const notifications.NotificationsPage()),
+                    builder: (context) => notifications.NotificationPage()),
               );
             }),
             _buildDrawerItem('Chat', Icons.chat, () {
@@ -466,7 +465,11 @@ class _ManageCasesState extends State<ManageCases> {
           IconButton(
             icon: Icon(Icons.notifications, color: blueColor),
             onPressed: () {
-              // Add notification icon logic
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => notifications.NotificationPage()),
+              );
             },
           ),
           IconButton(
@@ -493,10 +496,7 @@ class _ManageCasesState extends State<ManageCases> {
     return ListView(
       padding: const EdgeInsets.all(16.0),
       children: [
-        // Search row at the top
         _buildSearchRow(),
-
-        // Display cases
         if (displayedCases.isNotEmpty)
           ...displayedCases.map((caseData) {
             return Card(
