@@ -6,12 +6,9 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'package:firstproj/Pages/AdminDashboardPage.dart' as adminDashboardPage;
 import 'package:firstproj/Pages/ManageClients.dart' as manageClients;
 import 'package:firstproj/Pages/ManageCases.dart' as manageCases;
-import 'package:firstproj/Pages/LegalDocuments.dart' as legalDocuments;
 import 'package:firstproj/Pages/Reports.dart' as reports;
 import 'package:firstproj/Pages/Billing.dart' as billing;
 import 'package:firstproj/Pages/Notifications.dart' as notifications;
-import 'package:firstproj/Pages/ManageComplaints.dart' as manageComplaints;
-
 
 final GlobalKey<ScaffoldMessengerState> scaffoldMessengerKey =
     GlobalKey<ScaffoldMessengerState>();
@@ -42,21 +39,12 @@ class LawApp extends StatelessWidget {
             const dashboardPage.DashboardPage(), // Use alias for DashboardPage
         '/AdminDashboardPage': (context) =>
             const adminDashboardPage.AdminDashboardPage(),
-              '/ManageClients': (context) =>
-             manageClients.ManageClients(),
-             '/ManageCases': (context) =>
-             manageCases.ManageCases(),
-   '/LegalDocuments': (context) =>
-            const legalDocuments.LegalDocuments(),
-       '/Notifications': (context) =>
-            const notifications.NotificationsPage(),
-            '/Billing': (context) =>
-            const billing.BillingPage(),
-            '/Reports': (context) =>
-            const reports.ReportsPage(),   
-             '/ManageComplaints': (context) =>
-             manageComplaints.ManageComplaints(),   
-            
+        '/ManageClients': (context) => manageClients.ManageClients(),
+        '/ManageCases': (context) => manageCases.ManageCases(),
+
+        '/Notifications': (context) => const notifications.NotificationsPage(),
+        '/Billing': (context) => const billing.BillingPage(),
+        '/Reports': (context) => const reports.ReportsPage(),
       },
     );
   }

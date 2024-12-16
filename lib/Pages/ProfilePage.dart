@@ -6,11 +6,9 @@ import 'dart:async';
 import 'package:firstproj/Pages/TokenUtils.dart';
 import 'package:firstproj/Pages/ManageClients.dart' as manageClients;
 import 'package:firstproj/Pages/ManageCases.dart' as manageCases;
-import 'package:firstproj/Pages/LegalDocuments.dart' as legalDocuments;
 import 'package:firstproj/Pages/Reports.dart' as reports;
 import 'package:firstproj/Pages/Billing.dart' as billing;
 import 'package:firstproj/Pages/Notifications.dart' as notifications;
-import 'package:firstproj/Pages/ManageComplaints.dart' as manageComplaints;
 import 'package:firstproj/Pages/AdminDashboardPage.dart' as adminDashboardPage;
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
@@ -500,21 +498,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     builder: (context) => manageCases.ManageCases()),
               );
             }),
-            _buildDrawerItem(Icons.report_problem, 'Manage Complaints', () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => manageComplaints.ManageComplaints()),
-              );
-            }),
-            _buildDrawerItem(Icons.document_scanner, 'Legal Documents', () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        const legalDocuments.LegalDocuments()),
-              );
-            }),
+         
             _buildDrawerItem(Icons.notifications, 'Notifications', () {
               Navigator.pushReplacement(
                 context,

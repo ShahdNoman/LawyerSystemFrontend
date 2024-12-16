@@ -22,14 +22,6 @@ CREATE TABLE `complaints` (
   `creation_date` timestamp NOT NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- Table structure for table `tokens`
-CREATE TABLE `tokens` (
-  `id` int(11) NOT NULL,
-  `user_id` int(11) DEFAULT NULL,
-  `token_value` varchar(255) DEFAULT NULL,
-  `issue_time` timestamp NOT NULL DEFAULT current_timestamp(),
-  `expiration_time` timestamp NULL DEFAULT NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Table structure for table `sessions`
 CREATE TABLE `sessions` (

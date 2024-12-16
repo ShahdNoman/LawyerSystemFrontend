@@ -1,15 +1,13 @@
 import 'package:firstproj/Pages/ProfilePage.dart';
+import 'package:firstproj/Pages/Notifications.dart' as notifications;
 import 'package:firstproj/Pages/TokenUtils.dart';
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'dart:async';
 import 'package:firstproj/Pages/ManageClients.dart' as manageClients;
 import 'package:firstproj/Pages/ManageCases.dart' as manageCases;
-import 'package:firstproj/Pages/LegalDocuments.dart' as legalDocuments;
-import 'package:firstproj/Pages/Notifications.dart' as notifications;
-import 'package:firstproj/Pages/ManageComplaints.dart' as manageComplaints;
 
 const Color backgroundColor = Colors.white;
 const Color lightBlueColor = Color(0xFFADD8E6);
@@ -177,21 +175,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                     builder: (context) => manageCases.ManageCases()),
               );
             }),
-            _buildDrawerItem(Icons.report_problem, 'Manage Complaints', () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (context) => manageComplaints.ManageComplaints()),
-              );
-            }),
-            _buildDrawerItem(Icons.document_scanner, 'Legal Documents', () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(
-                    builder: (context) =>
-                        const legalDocuments.LegalDocuments()),
-              );
-            }),
+
             _buildDrawerItem(Icons.notifications, 'Notifications', () {
               Navigator.pushReplacement(
                 context,
@@ -290,14 +274,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
     final List<Map<String, dynamic>> features = [
       {'icon': Icons.people, 'title': 'Manage Clients'},
       {'icon': Icons.library_books, 'title': 'Manage Cases'},
-      {'icon': Icons.document_scanner, 'title': 'Legal Documents'},
-      {'icon': Icons.notifications, 'title': 'Notifications'},
       {'icon': Icons.attach_money, 'title': 'Billing'},
       {'icon': Icons.report, 'title': 'Reports'},
-      {
-        'icon': Icons.report_problem,
-        'title': 'Manage Complaints'
-      }, // Add this line
+      // Add this line
     ];
 
     return GridView.builder(

@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:async';
+import 'package:firstproj/Pages/ProfilePage.dart';
+import 'package:firstproj/Pages/TokenUtils.dart';
 import 'package:firstproj/Pages/AdminDashboardPage.dart' as adminDashboardPage;
 import 'package:firstproj/Pages/ManageClients.dart' as manageClients;
 import 'package:firstproj/Pages/ManageCases.dart' as manageCases;
-import 'package:firstproj/Pages/LegalDocuments.dart' as legalDocuments;
 import 'package:firstproj/Pages/Reports.dart' as reports;
 import 'package:firstproj/Pages/Billing.dart' as billing;
 import 'package:firstproj/Pages/Notifications.dart' as notifications;
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:firstproj/Pages/ManageComplaints.dart' as manageComplaints;
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
-const Color blueColor = Color(0xFF1E88E5);
+const Color blueColor = Color(0xFF0F3460);
+const Color backgroundColor = Colors.white;
+const Color lightBlueColor = Color(0xFFADD8E6);
 
 class ManageClients extends StatefulWidget {
   @override
@@ -19,8 +23,59 @@ class ManageClients extends StatefulWidget {
 }
 
 class _ManageClientsState extends State<ManageClients> {
-  bool isLoading = false;
+  bool isLoading = true;
   String fetchedData = '';
+  late Timer _timer;
+  List<dynamic> filteredUsers = [];
+  List<dynamic> users = [];
+  String adminName = 'Admin'; // Default name
+  String adminEmail = 'admin@example.com'; // Default email
+  String adminPicUrl = ''; // To store the profile picture URL
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(Duration(seconds: 30), (timer) {
+      TokenUtils.checkTokenExpiration(context);
+    });
+    _fetchAdminData(); 
+    _fetchUsers();
+    _searchController.addListener(() {
+      _onSearchChanged();
+    });
+    // Apply filter as user types
+  }
+
+
+  void _onSearchChanged() {
+    String searchTerm = _searchController.text.toLowerCase();
+
+    setState(() {
+      filteredUsers = users.where((user) {
+        return (user['email']?.toLowerCase().contains(searchTerm) ?? false) ||
+            (user['phone_number']?.toLowerCase().contains(searchTerm) ??
+                false) ||
+            (user['full_name']?.toLowerCase().contains(searchTerm) ?? false) ||
+            (user['membership_number']?.toLowerCase().contains(searchTerm) ??
+                false) ||
+            (user['judge_number']?.toLowerCase().contains(searchTerm) ??
+                false) ||
+            (user['id_number']?.toLowerCase().contains(searchTerm) ?? false) ||
+            (user['registration_date']?.toLowerCase().contains(searchTerm) ??
+                false) ||
+            (user['bio']?.toLowerCase().contains(searchTerm) ?? false);
+      }).toList();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
   TextEditingController clientNameController = TextEditingController();
   TextEditingController clientEmailController = TextEditingController();
   TextEditingController clientRoleController = TextEditingController();
@@ -34,14 +89,126 @@ class _ManageClientsState extends State<ManageClients> {
   TextEditingController clientIdNumberController = TextEditingController();
   TextEditingController clientStatusController = TextEditingController();
   TextEditingController clientPasswordController = TextEditingController();
+  TextEditingController _searchController = TextEditingController();
   String selectedStatus = 'Active'; // Declare selectedStatus here
+  bool _isHovered = false;
+
+  Future<Map<String, dynamic>> fetchAdminData(String token) async {
+    final response = await http.post(
+      Uri.parse('http://10.0.2.2:4000/adminRoutes/get-my-info'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body); // Parse and return the response
+    } else {
+      throw Exception(
+          'Failed to load admin data. Status Code: ${response.statusCode}');
+    }
+  }
+
+  Future<void> _fetchAdminData() async {
+    try {
+      var box = await Hive.openBox('userBox');
+      final token = box.get('token');
+
+      if (token == null || token.isEmpty) {
+        Navigator.pushReplacementNamed(context, '/');
+        return;
+      }
+
+      final data = await fetchAdminData(token); // Fetch admin data from API
+      setState(() {
+        isLoading = false;
+        adminName = data['user']['username'] ?? 'Admin';
+        adminEmail = data['user']['email'] ?? 'admin@example.com';
+        adminPicUrl = data['user']['profilePic'] ?? '';
+        // If no pic, use empty string
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        fetchedData = 'Error fetching admin data: $e';
+      });
+    }
+  }
+
+  String errorMessage = '';
+  Future<void> _fetchUsers() async {
+    try {
+      var box = await Hive.openBox('userBox');
+      final token = box.get('token');
+
+      if (token == null || token.isEmpty) {
+        Navigator.pushReplacementNamed(context, '/');
+        return;
+      }
+
+      final List<dynamic> data = await fetchUsers(token);
+
+      setState(() {
+        users = data; // Store the fetched users
+        filteredUsers = List.from(users); // Initially show all users
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        errorMessage = 'Error fetching users: $e';
+      });
+      print('Error: $e');
+    }
+  }
+
+  Future<List<dynamic>> fetchUsers(String token) async {
+    final response = await http.get(
+      Uri.parse('http://10.0.2.2:4000/adminRoutes/viewAll-users'),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      // Parse and return the response body as a list of users
+      return json.decode(response.body) as List<dynamic>;
+    } else {
+      throw Exception(
+          'Failed to load admin data. Status Code: ${response.statusCode}');
+    }
+  }
+
+  void _filterUsers() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      filteredUsers = users.where((user) {
+        return user.values
+            .any((value) => value.toString().toLowerCase().contains(query));
+      }).toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Manage Clients')),
-      drawer: _buildDrawer(), // Adding Drawer here
-      body: _buildManageClientsForm(),
+      appBar: AppBar(
+        title: const Text(
+          'Manage Clients',
+          style: TextStyle(color: Colors.white, fontSize: 18),
+        ),
+        backgroundColor: Color(0xFF0F3460),
+      ),
+      drawer: _buildDrawer(),
+      body: _buildClientContent(),
     );
   }
 
@@ -61,23 +228,29 @@ class _ManageClientsState extends State<ManageClients> {
                   CircleAvatar(
                     radius: 35,
                     backgroundColor: Colors.white,
-                    child: Icon(
-                      Icons.person,
-                      size: 50,
-                      color: Color(0xFF0F3460),
-                    ),
+                    backgroundImage: adminPicUrl.isNotEmpty
+                        ? NetworkImage(adminPicUrl) // Use fetched image URL
+                        : null, // If no image URL, fallback to default icon
+                    child: adminPicUrl
+                            .isEmpty // Fallback to default icon if no image
+                        ? Icon(
+                            Icons.person,
+                            size: 50,
+                            color: Color(0xFF0F3460),
+                          )
+                        : null,
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Welcome, Admin!',
+                  Text(
+                    adminName,
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const Text(
-                    'admin@example.com',
+                  Text(
+                    adminEmail,
                     style: TextStyle(
                       color: Colors.white70,
                       fontSize: 14,
@@ -111,20 +284,21 @@ class _ManageClientsState extends State<ManageClients> {
                 ),
               );
             }),
-            _buildDrawerItem('Manage Complaints', Icons.library_books, () {
+            _buildDrawerItem('Notifications', Icons.notifications, () {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => manageComplaints.ManageComplaints(),
-                ),
+                    builder: (context) =>
+                        const notifications.NotificationsPage()),
               );
             }),
-            _buildDrawerItem('Legal Documents', Icons.document_scanner, () {
+            _buildDrawerItem('Chat', Icons.chat, () {
+              // Add chat navigation logic
+            }),
+            _buildDrawerItem('Admin Profile', Icons.account_circle, () {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const legalDocuments.LegalDocuments(),
-                ),
+                MaterialPageRoute(builder: (context) => ProfilePage()),
               );
             }),
             _buildDrawerItem('Logout', Icons.logout, () {
@@ -144,83 +318,521 @@ class _ManageClientsState extends State<ManageClients> {
     );
   }
 
-  Widget _buildManageClientsForm() {
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        // First Card (Add)
-        Card(
-          color: Colors.green,
-          elevation: 4.0,
-          child: ListTile(
-            contentPadding: EdgeInsets.all(16.0),
-            title: Text(
-              'Add New Admin',
-              style: TextStyle(
-                fontSize: 18.0,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
+  void _showChatDialog(Map<String, dynamic> user) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Chat with ${user['username']}"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("Start a conversation with ${user['username']}."),
+              SizedBox(height: 10),
+              TextField(
+                decoration: InputDecoration(
+                  labelText: "Enter your message",
+                  border: OutlineInputBorder(),
+                ),
               ),
-            ),
-            trailing: Icon(Icons.add, color: Colors.white),
-            onTap: () {
-              _showAddClientDialog();
-            },
+            ],
           ),
-        ),
-        SizedBox(height: 16.0),
-
-        // Second Card (Update)
-        Card(
-          color: Colors.yellow,
-          elevation: 4.0,
-          child: ListTile(
-            contentPadding: EdgeInsets.all(16.0),
-            title: Text(
-              'Update Client Status',
-              style: TextStyle(
-                fontSize: 18.0,
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Close the dialog
+              },
+              child: Text("Cancel"),
             ),
-            trailing: Icon(Icons.update, color: Colors.black),
-            onTap: () {
-              _showUpdateClientDialog();
-            },
-          ),
-        ),
-        SizedBox(height: 16.0),
-
-        // Third Card (Delete)
-        Card(
-          color: Colors.red,
-          elevation: 4.0,
-          child: ListTile(
-            contentPadding: EdgeInsets.all(16.0),
-            title: Text(
-              'Delete Client',
-              style: TextStyle(
-                fontSize: 18.0,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
+            TextButton(
+              onPressed: () {
+                // Handle sending the message
+                print("Message sent to ${user['username']}");
+                Navigator.pop(context);
+              },
+              child: Text("Send"),
             ),
-            trailing: Icon(Icons.delete, color: Colors.white),
-            onTap: () {
-              _showDeleteClientDialog(); // No need to pass clientId here, since it will be entered in the dialog
-            },
-          ),
-        ),
-        SizedBox(height: 16.0),
-
-        // Loading or Fetched Data
-        isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Text(fetchedData),
-      ],
+          ],
+        );
+      },
     );
-    
+  }
+
+  void _showUserDetailsDialog(Map<String, dynamic> user) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Column(
+            children: [
+              // Profile picture with active status
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundImage: user['profile_picture'] != null
+                        ? NetworkImage(user['profile_picture'])
+                        : AssetImage('assets/images/default-profile.png')
+                            as ImageProvider,
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: user['status'] == 'Active'
+                            ? Colors.green
+                            : Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 8),
+              Text(
+                user['username'] ?? 'User Details',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              Text(user['role'] ?? 'N/A'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetailRow('Email:', user['email'] ?? 'N/A', Icons.email),
+                _buildDetailRow(
+                    'Phone:', user['phone_number'] ?? 'N/A', Icons.phone),
+                _buildDetailRow(
+                    'Full Name:', user['full_name'] ?? 'N/A', Icons.person),
+                _buildDetailRow('Membership Number:',
+                    user['membership_number'] ?? 'N/A', Icons.card_membership),
+                _buildDetailRow('Judge Number:', user['judge_number'] ?? 'N/A',
+                    Icons.gavel),
+                _buildDetailRow('ID Number:', user['id_number'] ?? 'N/A',
+                    Icons.perm_identity),
+                _buildDetailRow('Registration Date:',
+                    user['registration_date'] ?? 'N/A', Icons.date_range),
+                _buildDetailRow('Bio:', user['bio'] ?? 'N/A', Icons.info),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text("Close"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Close dialog before initiating chat
+                _showChatDialog(user); // Initiates chat
+              },
+              child: Text(
+                "Chat",
+                style: TextStyle(color: Colors.blue),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                    context); // Close dialog before delete confirmation
+                _showDeleteConfirmationDialog(
+                    user['id'].toString()); // Delete confirmation
+              },
+              child: Text(
+                "Delete",
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showDeleteConfirmationDialog(String userId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text("Confirm Delete"),
+          content: Text("Are you sure you want to delete this user?"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Cancel action
+              },
+              child: Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                _deleteClient(userId); // Convert to String
+                print("User with ID $userId deleted.");
+                Navigator.pop(context); // Close dialog
+              },
+              child: Text(
+                "Delete",
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.blue, size: 20), // Icon for each detail
+          SizedBox(width: 8.0), // Space between icon and text
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, color: Colors.black54)),
+                SizedBox(height: 4.0),
+                Text(value, style: TextStyle(color: Colors.black)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClientContent() {
+    return Container(
+      color: backgroundColor,
+      child: Column(
+        children: [
+          _buildSearchRow(), // Add the search bar at the top
+          // Show a loading indicator if the data is being fetched
+          if (isLoading) const Center(child: CircularProgressIndicator()),
+          // Display the user list or a "no clients" message
+          Expanded(
+            child: isLoading
+                ? const Center(
+                    child:
+                        CircularProgressIndicator()) // Show loading if still fetching
+                : users.isEmpty
+                    ? const Center(
+                        child:
+                            Text("No clients available.")) // No clients found
+                    : _buildManageClientsForm(), // Build the user list if data is available
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchRow() {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController, // Attach the controller
+              onChanged: (value) {
+                // Trigger search logic on text change
+                _onSearchChanged();
+              },
+              decoration: InputDecoration(
+                hintText: 'Search...',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: BorderSide(color: lightBlueColor),
+                ),
+              ),
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.notifications, color: blueColor),
+            onPressed: () {
+              // Add notification icon logic
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.chat, color: blueColor),
+            onPressed: () {
+              // Add chat icon logic
+            },
+          ),
+          IconButton(
+            icon: Icon(Icons.account_circle, color: blueColor),
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => ProfilePage()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildManageClientsForm() {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          SizedBox(
+            height: 16.0, // Space between the button and the list of users
+          ),
+          Card(
+            elevation: 4.0,
+            margin: const EdgeInsets.symmetric(
+                horizontal: 16.0), // Add horizontal padding
+            shape: RoundedRectangleBorder(
+              borderRadius:
+                  BorderRadius.circular(12.0), // Smooth rounded corners
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Row(
+                mainAxisAlignment:
+                    MainAxisAlignment.spaceBetween, // Aligns items neatly
+                children: [
+                  Text(
+                    "Manage Admins",
+                    style: TextStyle(
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () {
+                      _showAddClientDialog(); // Show the dialog when the button is tapped
+                    },
+                    child: MouseRegion(
+                      onEnter: (_) {
+                        setState(() {
+                          _isHovered = true; // Show text when hovering
+                        });
+                      },
+                      onExit: (_) {
+                        setState(() {
+                          _isHovered = false; // Hide text when not hovering
+                        });
+                      },
+                      child: AnimatedContainer(
+                        duration: const Duration(
+                            milliseconds: 200), // Smooth animation
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 8.0,
+                            horizontal: 12.0), // Comfortable padding
+                        decoration: BoxDecoration(
+                          color: Colors.green, // Vibrant green background
+                          borderRadius:
+                              BorderRadius.circular(12), // More rounded corners
+                          boxShadow: [
+                            BoxShadow(
+                              color:
+                                  Colors.black.withOpacity(0.1), // Soft shadow
+                              blurRadius: 6, // Smooth blur
+                              offset: Offset(
+                                  0, 4), // Downward offset for natural shadow
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize:
+                              MainAxisSize.min, // Minimize size to fit content
+                          children: [
+                            Icon(
+                              Icons.add,
+                              color: Colors.white,
+                              size: 20.0, // Subtle reduction in icon size
+                            ),
+                            SizedBox(width: 8.0), // Space between icon and text
+                            AnimatedOpacity(
+                              opacity: _isHovered
+                                  ? 1.0
+                                  : 0.0, // Show text only when hovered
+                              duration:
+                                  Duration(milliseconds: 200), // Smooth fade
+                              child: Text(
+                                'Add Admin',
+                                style: TextStyle(
+                                  fontSize:
+                                      14.0, // Adjusted font size for readability
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w600, // Slightly bold
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : errorMessage.isNotEmpty
+                  ? Center(child: Text(errorMessage)) // Display error message
+                  : (filteredUsers.isEmpty && users.isEmpty)
+                      ? const Center(child: Text("No users found."))
+                      : Container(
+                          height:
+                              650, // Set a fixed height for the list to ensure scrolling
+                          child: ListView.builder(
+                            shrinkWrap: true,
+                            physics: AlwaysScrollableScrollPhysics(),
+                            itemCount: filteredUsers.isNotEmpty
+                                ? filteredUsers.length
+                                : users
+                                    .length, // Use filtered users if available
+                            itemBuilder: (context, index) {
+                              final user = filteredUsers.isNotEmpty
+                                  ? filteredUsers[index]
+                                  : users[index]; // Choose the appropriate list
+                              return GestureDetector(
+                                onTap: () => _showUserDetailsDialog(user),
+                                child: Card(
+                                  margin: EdgeInsets.all(10),
+                                  child: ListTile(
+                                    leading: Stack(
+                                      alignment: Alignment
+                                          .topRight, // Align the status circle at the top right
+                                      children: [
+                                        // User's profile picture
+                                        CircleAvatar(
+                                          radius: 30, // Profile picture size
+                                          backgroundImage: user[
+                                                      'profile_picture'] !=
+                                                  null
+                                              ? NetworkImage(user[
+                                                  'profile_picture']) // For network images
+                                              : AssetImage(
+                                                      'assets/images/default-profile.png')
+                                                  as ImageProvider, // For local assets
+                                        ),
+                                        // Active status circle at the top-right of the profile picture
+                                        Positioned(
+                                          top:
+                                              0, // Position the status circle at the top
+                                          right: 0, // Position it on the right
+                                          child: Container(
+                                            width:
+                                                12, // Size of the status circle
+                                            height: 12,
+                                            decoration: BoxDecoration(
+                                              color: user['status'] == 'Active'
+                                                  ? Colors.green
+                                                  : Colors.grey,
+                                              shape: BoxShape.circle,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    title: Text(user['username'] ?? 'Unknown'),
+                                    subtitle: Text(user['role'] ?? 'N/A'),
+                                    trailing: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            _showChatDialog(
+                                                user); // Open Chat dialog
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors
+                                                .blue, // Customize button color
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4), // Smaller padding
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.chat,
+                                                  size: 12,
+                                                  color: Colors
+                                                      .white), // Very small chat icon
+                                              SizedBox(
+                                                  width:
+                                                      2), // Minimal spacing between icon and text
+                                              Text(
+                                                "Chat",
+                                                style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: Colors
+                                                        .white), // Smaller text
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        SizedBox(
+                                            width:
+                                                6), // Smaller spacing between buttons
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            _showDeleteConfirmationDialog(user[
+                                                    'id']
+                                                .toString()); // Confirm Delete
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors
+                                                .red, // Customize delete button color
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            padding: EdgeInsets.symmetric(
+                                                horizontal: 8,
+                                                vertical: 4), // Smaller padding
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(Icons.delete,
+                                                  size: 12,
+                                                  color: Colors
+                                                      .white), // Very small delete icon
+                                              SizedBox(
+                                                  width:
+                                                      2), // Minimal spacing between icon and text
+                                              Text(
+                                                "Delete",
+                                                style: TextStyle(
+                                                    fontSize: 10,
+                                                    color: Colors
+                                                        .white), // Smaller text
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+        ],
+      ),
+    );
   }
 
   void _showUpdateClientDialog() {
@@ -259,64 +871,26 @@ class _ManageClientsState extends State<ManageClients> {
           actions: [
             TextButton(
               onPressed: () {
-                _updateClientStatus(
-                  clientIdNumberController.text,
-                  clientStatusController.text,
-                );
-                Navigator.pop(context);
+                // Ensure the fields are not empty before updating
+                if (clientIdNumberController.text.isNotEmpty &&
+                    clientStatusController.text.isNotEmpty) {
+                  _updateClientStatus(
+                    clientIdNumberController.text,
+                    clientStatusController.text,
+                  );
+                  Navigator.pop(context); // Close the dialog
+                } else {
+                  // Optionally show an error if fields are empty
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Please fill all fields")),
+                  );
+                }
               },
               child: const Text('Update'),
             ),
             TextButton(
               onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Cancel'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showDeleteClientDialog() {
-    final TextEditingController _controller = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete Client'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Please enter the Client ID to delete:'),
-              TextFormField(
-                controller: _controller,
-                decoration: const InputDecoration(hintText: 'Enter Client ID'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                String clientId = _controller.text;
-                if (clientId.isNotEmpty) {
-                  _deleteClient(clientId);
-                  Navigator.pop(context);
-                } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Please enter a valid Client ID.')),
-                  );
-                }
-              },
-              child: const Text('Delete'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
+                Navigator.pop(context); // Close the dialog
               },
               child: const Text('Cancel'),
             ),
@@ -426,7 +1000,7 @@ class _ManageClientsState extends State<ManageClients> {
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Add Client'),
+          title: const Text('Add Admin'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
