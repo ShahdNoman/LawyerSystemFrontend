@@ -9,9 +9,11 @@ import 'package:firstproj/Pages/ManageCases.dart' as manageCases;
 import 'package:firstproj/Pages/Reports.dart' as reports;
 import 'package:firstproj/Pages/Billing.dart' as billing;
 import 'package:firstproj/Pages/Notifications.dart' as notifications;
+import 'package:firstproj/Pages/ChatPage.dart' as chat;
 import 'package:firstproj/Pages/AdminDashboardPage.dart' as adminDashboardPage;
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:flutter/foundation.dart'; // Import to check if running on web
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -86,6 +88,8 @@ class _ProfilePageState extends State<ProfilePage> {
         username = data['user']['username'] ?? 'User';
         email = data['user']['email'] ?? 'user@example.com';
         adminPicUrl = data['user']['profilePic'] ?? '';
+        adminPicUrl = _constructImageUrl(adminPicUrl);
+
         phoneNumber = data['user']['phoneNumber'] ?? '';
         fullName = data['user']['fullName'] ?? '';
         bio = data['user']['bio'] ?? '';
@@ -100,9 +104,27 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  String _constructImageUrl(String relativePath) {
+    final String baseUrl;
+    if (kIsWeb) {
+      baseUrl = 'http://192.168.88.11:4000'; //or the actual ip
+    } else {
+      baseUrl = 'http://10.0.2.2:4000';
+    }
+    print('the pic issssssss :$baseUrl/$relativePath');
+
+    return '$baseUrl/$relativePath';
+  }
+
   Future<Map<String, dynamic>> fetchDataFromBackend(String token) async {
+    final fetdata = kIsWeb
+        ? 'http://192.168.88.11:4000/adminRoutes/get-my-info' // For Web (Chrome)
+        : 'http://10.0.2.2:4000/adminRoutes/get-my-info'; // For Android Emulator
+
+    print("fetdata is $fetdata");
+
     final response = await http.post(
-      Uri.parse('http://10.0.2.2:4000/adminRoutes/get-my-info'),
+      Uri.parse(fetdata),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
         'Authorization': 'Bearer $token',
@@ -177,8 +199,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
     // Send data to the server with the token in headers
     try {
+      final updatepr = kIsWeb
+          ? 'http://192.168.88.11:4000/adminRoutes/update-profile' // For Web (Chrome)
+          : 'http://10.0.2.2:4000/adminRoutes/update-profile'; // For Android Emulator
+
+      print("updatepr is $updatepr");
+
       final response = await http.put(
-        Uri.parse('http://10.0.2.2:4000/adminRoutes/update-profile'),
+        Uri.parse(updatepr),
         headers: <String, String>{
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token', // Add token here
@@ -280,8 +308,14 @@ class _ProfilePageState extends State<ProfilePage> {
     }
 
     // Send the old and new passwords to the server for updating
+    final updatepass = kIsWeb
+        ? 'http://192.168.88.11:4000/adminRoutes/update-password' // For Web (Chrome)
+        : 'http://10.0.2.2:4000/adminRoutes/update-password'; // For Android Emulator
+
+    print("updatepass is $updatepass");
+
     final response = await http.post(
-      Uri.parse('http://10.0.2.2:4000/adminRoutes/update-password'),
+      Uri.parse(updatepass),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
         'Authorization': 'Bearer $token',
@@ -326,7 +360,10 @@ class _ProfilePageState extends State<ProfilePage> {
           IconButton(
             icon: Icon(Icons.chat, color: Colors.white),
             onPressed: () {
-              // Navigate to the chat page
+              // Navigator.pushReplacement(
+              //   //context
+              //   //MaterialPageRoute(builder: (context) => chat.ChatPage()),
+              // );
             },
           ),
           IconButton(
@@ -498,17 +535,18 @@ class _ProfilePageState extends State<ProfilePage> {
                     builder: (context) => manageCases.ManageCases()),
               );
             }),
-         
             _buildDrawerItem(Icons.notifications, 'Notifications', () {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                    builder: (context) =>
-                         notifications.NotificationPage()),
+                    builder: (context) => notifications.NotificationPage()),
               );
             }),
             _buildDrawerItem(Icons.chat, 'Chat', () {
-              // Add chat navigation here
+              // Navigator.pushReplacement(
+              //   context,
+              //  // MaterialPageRoute(builder: (context) => chat.ChatPage()),
+              // );
             }),
             _buildDrawerItem(Icons.bar_chart, 'Reports', () {
               Navigator.pushReplacement(

@@ -11,6 +11,7 @@ import 'package:firstproj/Pages/ManageCases.dart' as manageCases;
 import 'package:firstproj/Pages/Reports.dart' as reports;
 import 'package:firstproj/Pages/Billing.dart' as billing;
 import 'package:firstproj/Pages/AdminDashboardPage.dart' as adminDashboardPage;
+import 'package:flutter/foundation.dart'; // Import to check if running on web
 
 const Color backgroundColor = Colors.white;
 const Color lightBlueColor = Color(0xFFADD8E6);

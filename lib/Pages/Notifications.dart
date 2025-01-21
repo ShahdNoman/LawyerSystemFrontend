@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'dart:async';
 import 'package:firstproj/Pages/TokenUtils.dart';
 import 'package:firstproj/Pages/AdminDashboardPage.dart' as adminDashboardPage;
+import 'package:flutter/foundation.dart'; // Import to check if running on web
 
 class NotificationPage extends StatefulWidget {
   NotificationPage({Key? key}) : super(key: key);

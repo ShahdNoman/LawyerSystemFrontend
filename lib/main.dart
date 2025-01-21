@@ -24,6 +24,15 @@ class LawApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        ErrorWidget.builder = (FlutterErrorDetails errorDetails) {
+          return Scaffold(
+              body: Center(
+                  child: Text('An error occurred: ${errorDetails.exception}')));
+        };
+        return child!;
+      },
       title: 'Lawyer App',
       theme: ThemeData(
         primarySwatch: Colors.indigo,
@@ -42,7 +51,7 @@ class LawApp extends StatelessWidget {
         '/ManageClients': (context) => manageClients.ManageClients(),
         '/ManageCases': (context) => manageCases.ManageCases(),
 
-        '/Notifications': (context) =>  notifications.NotificationPage(),
+        '/Notifications': (context) => notifications.NotificationPage(),
         '/Billing': (context) => const billing.BillingPage(),
         '/Reports': (context) => const reports.ReportsPage(),
       },

@@ -1,6 +1,7 @@
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:firstproj/main.dart'; // Import the main.dart file
+import 'package:flutter/foundation.dart'; // Import to check if running on web
 
 class TokenUtils {
   static Future<void> checkTokenExpiration(BuildContext context) async {
