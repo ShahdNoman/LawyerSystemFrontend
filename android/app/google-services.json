@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "260343473804",
+    "project_id": "shahd-e432b",
+    "storage_bucket": "shahd-e432b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:260343473804:android:f42ed1cbc0048257f6bda9",
+        "android_client_info": {
+          "package_name": "com.example.firstproj"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaaKTVgopLLmZcdLyg-gW3lffQdPl06mw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:260343473804:android:82957f5b21f19c83f6bda9",
+        "android_client_info": {
+          "package_name": "com.shahd.firstproj"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaaKTVgopLLmZcdLyg-gW3lffQdPl06mw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

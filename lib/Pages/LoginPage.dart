@@ -7,14 +7,14 @@ import 'package:firstproj/Pages/TokenUtils.dart';
 import 'package:firstproj/main.dart';
 import 'package:firstproj/Pages/AdminDashboardPage.dart' as adminDashboardPage;
 import 'package:firstproj/Pages/AboutPage.dart' as aboutPage;
-
-import 'package:flutter/foundation.dart'; // Import to check if running on web
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 const Color textPrimaryColor = Color.fromARGB(255, 1, 25, 65);
 
-void main() {
-  runApp(LawApp());
-}
+// void main() async {
+//   WidgetsFlutterBinding.ensureInitialized();
+
+// }
 
 class ForgotPasswordScreen extends StatelessWidget {
   final TextEditingController _emailController = TextEditingController();
@@ -59,7 +59,7 @@ class ForgotPasswordScreen extends StatelessWidget {
 
                 try {
                   final forgetpass = kIsWeb
-                      ? 'http://192.168.88.11:4000/login/forgot-password' // For Web (Chrome)
+                      ? 'http://192.168.88.4:4000/login/forgot-password' // For Web (Chrome)
                       : 'http://10.0.2.2:4000/login/forgot-password'; // For Android Emulator
 
                   print("forgetpass is $forgetpass");
@@ -149,7 +149,7 @@ class _AnimatedLoginPageState extends State<AnimatedLoginPage>
   String _username = '';
   String _password = '';
   String _email = ''; // Email for sign-up
-  final String _role = ''; // New field
+  final String _role = 'Admin'; // New field
   String _fullName = ''; // New field
   String _phoneNumber = ''; // New field
   String _membershipNumber = ''; // New field
@@ -190,7 +190,7 @@ class _AnimatedLoginPageState extends State<AnimatedLoginPage>
   Future<void> _signup() async {
     try {
       final signupUrl = kIsWeb
-          ? 'http://192.168.88.11:4000/insert_record/insert_record' // For Web (Chrome)
+          ? 'http://192.168.88.4:4000/insert_record/insert_record' // For Web (Chrome)
           : 'http://10.0.2.2:4000/insert_record/insert_record'; // For Android Emulator
 
       print("signupUrl is $signupUrl");
@@ -233,7 +233,8 @@ class _AnimatedLoginPageState extends State<AnimatedLoginPage>
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(
-                  builder: (context) => const dashboardPage.DashboardPage()),
+                  builder: (context) =>
+                      const adminDashboardPage.AdminDashboardPage()),
             );
           });
         } else {
@@ -277,7 +278,7 @@ class _AnimatedLoginPageState extends State<AnimatedLoginPage>
   Future<void> _login() async {
     try {
       final loginUrl = kIsWeb
-          ? 'http://192.168.88.11:4000/login/login' // For Web (Chrome)
+          ? 'http://192.168.88.4:4000/login/login' // For Web (Chrome)
           : 'http://10.0.2.2:4000/login/login'; // For Android Emulator
 
       print("loginUrl is $loginUrl");
@@ -423,6 +424,83 @@ class _AnimatedLoginPageState extends State<AnimatedLoginPage>
   //   );
   // }
 
+  // @override
+  // Widget build(BuildContext context) {
+  //   return Scaffold(
+  //     backgroundColor: Colors.white,
+  //     body: Stack(
+  //       children: [
+  //         Center(
+  //           child: LayoutBuilder(
+  //             builder: (context, constraints) {
+  //               bool isMobile = constraints.maxWidth < 600;
+  //               return FadeTransition(
+  //                 opacity: _animation,
+  //                 child: Padding(
+  //                   padding: EdgeInsets.symmetric(
+  //                     horizontal: isMobile ? 16.0 : 32.0,
+  //                   ),
+  //                   child: Form(
+  //                     key: _formKey,
+  //                     child: SingleChildScrollView(
+  //                       child: Column(
+  //                         mainAxisAlignment: MainAxisAlignment.center,
+  //                         crossAxisAlignment: CrossAxisAlignment.stretch,
+  //                         children: [
+  //                           _buildLogo(isMobile),
+  //                           const SizedBox(height: 20),
+  //                           _buildUsernameTextField(),
+  //                           const SizedBox(height: 10),
+  //                           _buildPasswordTextField(),
+  //                           const SizedBox(height: 10),
+  //                            _buildForgotPasswordLink(isMobile),
+  //                           if (_isSignUp) _buildSignUpFields(isMobile),
+  //                           const SizedBox(height: 20),
+  //                           _buildSubmitButton(isMobile),
+  //                           const SizedBox(height: 20),
+  //                           _buildToggleFormButton(isMobile),
+  //                         ],
+  //                       ),
+  //                     ),
+  //                   ),
+  //                 ),
+  //               );
+  //             },
+  //           ),
+  //         ),
+  //         Positioned(
+  //           bottom: 20, // position at the bottom of the stack
+  //           left: 0,
+  //           right: 0,
+  //           child: GestureDetector(
+  //             onTap: () {
+  //               Navigator.push(
+  //                 context,
+  //                 MaterialPageRoute(
+  //                   builder: (context) => const aboutPage.AboutPage(),
+  //                 ),
+  //               );
+  //             },
+  //             child: const Row(
+  //                 mainAxisAlignment: MainAxisAlignment.center,
+  //                 children: [
+  //                   Icon(Icons.arrow_upward_rounded,
+  //                       color: Color.fromARGB(255, 1, 25, 65)),
+  //                   SizedBox(width: 10),
+  //                   Text(
+  //                     "About This App",
+  //                     style: TextStyle(
+  //                         color: Color.fromARGB(255, 1, 25, 65),
+  //                         decoration: TextDecoration.underline),
+  //                   ),
+  //                 ]),
+  //           ),
+  //         )
+  //       ],
+  //     ),
+  //   );
+  // }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -452,7 +530,7 @@ class _AnimatedLoginPageState extends State<AnimatedLoginPage>
                             const SizedBox(height: 10),
                             _buildPasswordTextField(),
                             const SizedBox(height: 10),
-                            _buildForgotPasswordLink(isMobile),
+                            if (!_isSignUp) _buildForgotPasswordLink(isMobile),
                             if (_isSignUp) _buildSignUpFields(isMobile),
                             const SizedBox(height: 20),
                             _buildSubmitButton(isMobile),
@@ -467,34 +545,35 @@ class _AnimatedLoginPageState extends State<AnimatedLoginPage>
               },
             ),
           ),
-          Positioned(
-            bottom: 20, // position at the bottom of the stack
-            left: 0,
-            right: 0,
-            child: GestureDetector(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const aboutPage.AboutPage(),
-                  ),
-                );
-              },
-              child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.arrow_upward_rounded,
-                        color: Color.fromARGB(255, 1, 25, 65)),
-                    SizedBox(width: 10),
-                    Text(
-                      "About This App",
-                      style: TextStyle(
-                          color: Color.fromARGB(255, 1, 25, 65),
-                          decoration: TextDecoration.underline),
+          if (!_isSignUp)
+            Positioned(
+              bottom: 20, // position at the bottom of the stack
+              left: 0,
+              right: 0,
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const aboutPage.AboutPage(),
                     ),
-                  ]),
-            ),
-          )
+                  );
+                },
+                child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.arrow_upward_rounded,
+                          color: Color.fromARGB(255, 1, 25, 65)),
+                      SizedBox(width: 10),
+                      Text(
+                        "About This App",
+                        style: TextStyle(
+                            color: Color.fromARGB(255, 1, 25, 65),
+                            decoration: TextDecoration.underline),
+                      ),
+                    ]),
+              ),
+            )
         ],
       ),
     );

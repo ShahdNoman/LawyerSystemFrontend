@@ -45,7 +45,7 @@ class _SignUpPageState extends State<SignUpPage> {
       String bio) async {
     try {
       final signupUrl = kIsWeb
-          ? 'http://192.168.88.11:4000/insert_record/insert_record' // For Web (Chrome)
+          ? 'http://192.168.88.4:4000/insert_record/insert_record' // For Web (Chrome)
           : 'http://10.0.2.2:4000/insert_record/insert_record'; // For Android Emulator
 
       print("signupUrl is $signupUrl");
@@ -64,7 +64,7 @@ class _SignUpPageState extends State<SignUpPage> {
           'judgeNumber': judgeNumber,
           'idNumber': idNumber,
           'bio': bio,
-          'profilePicture': _profilePicture, // Profile Picture URL or file data
+          // 'profilePicture': _profilePicture, // Profile Picture URL or file data
         }),
       );
 

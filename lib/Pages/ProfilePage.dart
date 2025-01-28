@@ -13,7 +13,7 @@ import 'package:firstproj/Pages/ChatPage.dart' as chat;
 import 'package:firstproj/Pages/AdminDashboardPage.dart' as adminDashboardPage;
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'package:flutter/foundation.dart'; // Import to check if running on web
+import 'package:flutter/foundation.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({Key? key}) : super(key: key);
@@ -26,30 +26,29 @@ class _ProfilePageState extends State<ProfilePage> {
   late Timer _timer;
   bool isLoading = true;
   String fetchedData = '';
-
   String username = '';
   String email = '';
   String fullName = '';
   String phoneNumber = '';
   String bio = '';
   final ImagePicker _picker = ImagePicker();
-
-  String adminPicUrl = ''; // To store the profile picture URL
-  bool _isEditing = false;
-
-  final _usernameController = TextEditingController();
-  final _emailController = TextEditingController();
-  final _fullNameController = TextEditingController();
-  final _phoneNumberController = TextEditingController();
-  final _bioController = TextEditingController();
+  String adminPicUrl = '';
+  bool isEditing = true;
+  bool isCancelOrSave = true;
+  final usernameController = TextEditingController();
+  final emailController = TextEditingController();
+  final fullNameController = TextEditingController();
+  final phoneController = TextEditingController();
+  final bioController = TextEditingController();
+  Map<String, dynamic>? userInfo;
+  bool _isChangePassword = false;
 
   @override
   void initState() {
     super.initState();
     _timer = Timer.periodic(Duration(seconds: 30), (timer) {
-      TokenUtils.checkTokenExpiration(context); // Add your token check logic
+      TokenUtils.checkTokenExpiration(context);
     });
-
     _loadUserData();
   }
 
@@ -61,12 +60,9 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _pickImage() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
-
     if (image != null) {
-      // Update the profile picture
       setState(() {
-        adminPicUrl =
-            image.path; // You can upload the image to a server if needed
+        adminPicUrl = image.path;
       });
     }
   }
@@ -84,17 +80,20 @@ class _ProfilePageState extends State<ProfilePage> {
       final data =
           await fetchDataFromBackend(token); // Fetch admin data from API
       setState(() {
+        userInfo = data['user'];
         isLoading = false;
         username = data['user']['username'] ?? 'User';
         email = data['user']['email'] ?? 'user@example.com';
         adminPicUrl = data['user']['profilePic'] ?? '';
         adminPicUrl = _constructImageUrl(adminPicUrl);
-
         phoneNumber = data['user']['phoneNumber'] ?? '';
         fullName = data['user']['fullName'] ?? '';
         bio = data['user']['bio'] ?? '';
-
-        // If no pic, use empty string
+        usernameController.text = username;
+        emailController.text = email;
+        fullNameController.text = fullName;
+        phoneController.text = phoneNumber;
+        bioController.text = bio;
       });
     } catch (e) {
       setState(() {
@@ -107,7 +106,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String _constructImageUrl(String relativePath) {
     final String baseUrl;
     if (kIsWeb) {
-      baseUrl = 'http://192.168.88.11:4000'; //or the actual ip
+      baseUrl = 'http://192.168.88.4:4000'; //or the actual ip
     } else {
       baseUrl = 'http://10.0.2.2:4000';
     }
@@ -118,9 +117,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<Map<String, dynamic>> fetchDataFromBackend(String token) async {
     final fetdata = kIsWeb
-        ? 'http://192.168.88.11:4000/adminRoutes/get-my-info' // For Web (Chrome)
+        ? 'http://192.168.88.4:4000/adminRoutes/get-my-info' // For Web (Chrome)
         : 'http://10.0.2.2:4000/adminRoutes/get-my-info'; // For Android Emulator
-
     print("fetdata is $fetdata");
 
     final response = await http.post(
@@ -145,6 +143,7 @@ class _ProfilePageState extends State<ProfilePage> {
     try {
       final data = await fetchDataFromBackend(token);
       setState(() {
+        userInfo = data['user'];
         isLoading = false;
         username = data['user']['username'] ?? 'User';
         email = data['user']['email'] ?? 'user@example.com';
@@ -152,14 +151,11 @@ class _ProfilePageState extends State<ProfilePage> {
         phoneNumber = data['user']['phoneNumber'] ?? '';
         fullName = data['user']['fullName'] ?? '';
         bio = data['user']['bio'] ?? '';
-
-        // Update the text controllers with the fetched data
-        _usernameController.text = username;
-        _emailController.text = email;
-        _fullNameController.text = fullName;
-        _phoneNumberController.text = phoneNumber;
-        _bioController.text = bio;
-
+        usernameController.text = username;
+        emailController.text = email;
+        fullNameController.text = fullName;
+        phoneController.text = phoneNumber;
+        bioController.text = bio;
         print(
             "User data updated: $username, $email, $fullName, $phoneNumber, $bio"); // Debug line
       });
@@ -175,23 +171,21 @@ class _ProfilePageState extends State<ProfilePage> {
     var box = await Hive.openBox('userBox');
 
     // Save data to Hive box (local database)
-    await box.put('username', _usernameController.text);
-    await box.put('email', _emailController.text);
-    await box.put('fullName', _fullNameController.text);
-    await box.put('phoneNumber', _phoneNumberController.text);
-    await box.put('bio', _bioController.text);
+    await box.put('username', usernameController.text);
+    await box.put('email', emailController.text);
+    await box.put('fullName', fullNameController.text);
+    await box.put('phoneNumber', phoneController.text);
+    await box.put('bio', bioController.text);
 
     // Set the local state with the new data
     setState(() {
-      username = _usernameController.text;
-      email = _emailController.text;
-      fullName = _fullNameController.text;
-      phoneNumber = _phoneNumberController.text;
-      bio = _bioController.text;
-    });
-
-    setState(() {
-      _isEditing = false;
+      username = usernameController.text;
+      email = emailController.text;
+      fullName = fullNameController.text;
+      phoneNumber = phoneController.text;
+      bio = bioController.text;
+      isEditing = false;
+      isCancelOrSave = false;
     });
 
     // Fetch the token from local storage (e.g., from Hive)
@@ -200,8 +194,8 @@ class _ProfilePageState extends State<ProfilePage> {
     // Send data to the server with the token in headers
     try {
       final updatepr = kIsWeb
-          ? 'http://192.168.88.11:4000/adminRoutes/update-profile' // For Web (Chrome)
-          : 'http://10.0.2.2:4000/adminRoutes/update-profile'; // For Android Emulator
+          ? 'http://192.168.88.4:4000/adminRoutes/update-profile'
+          : 'http://10.0.2.2:4000/adminRoutes/update-profile';
 
       print("updatepr is $updatepr");
 
@@ -209,27 +203,44 @@ class _ProfilePageState extends State<ProfilePage> {
         Uri.parse(updatepr),
         headers: <String, String>{
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token', // Add token here
+          'Authorization': 'Bearer $token',
         },
         body: jsonEncode({
-          'username': _usernameController.text,
-          'email': _emailController.text,
-          'fullName': _fullNameController.text,
-          'phoneNumber': _phoneNumberController.text,
-          'bio': _bioController.text,
+          'username': usernameController.text,
+          'email': emailController.text,
+          'fullName': fullNameController.text,
+          'phoneNumber': phoneController.text,
+          'bio': bioController.text,
         }),
       );
 
       if (response.statusCode == 200) {
         // Successfully updated
         print('Profile updated successfully');
+        if (ScaffoldMessenger.of(context).mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile updated successfully')),
+          );
+        }
       } else {
-        // Handle the error if the update failed
         print('Failed to update profile: ${response.body}');
       }
     } catch (e) {
       print('Error occurred while updating profile: $e');
     }
+  }
+
+  void _cancelChanges() {
+    setState(() {
+      isEditing = false;
+      isCancelOrSave = false;
+      // Restore the old values, we can use `userInfo` as source of truth here.
+      usernameController.text = userInfo?['username'] ?? '';
+      emailController.text = userInfo?['email'] ?? '';
+      fullNameController.text = userInfo?['fullName'] ?? '';
+      phoneController.text = userInfo?['phoneNumber'] ?? '';
+      bioController.text = userInfo?['bio'] ?? '';
+    });
   }
 
   void _showChangePasswordDialog() {
@@ -309,8 +320,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
     // Send the old and new passwords to the server for updating
     final updatepass = kIsWeb
-        ? 'http://192.168.88.11:4000/adminRoutes/update-password' // For Web (Chrome)
-        : 'http://10.0.2.2:4000/adminRoutes/update-password'; // For Android Emulator
+        ? 'http://192.168.88.4:4000/adminRoutes/update-password'
+        : 'http://10.0.2.2:4000/adminRoutes/update-password';
 
     print("updatepass is $updatepass");
 
@@ -339,16 +350,109 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Widget _buildTextField({
+    required String label,
+    required TextEditingController controller,
+    required IconData icon,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: TextField(
+        controller: controller,
+        enabled: isEditing,
+        style: TextStyle(
+          color: isEditing ? Color(0xFF003366) : Colors.white,
+        ),
+        decoration: InputDecoration(
+          prefixIcon: Icon(
+            icon,
+            color: isEditing ? Colors.grey[600] : Colors.white,
+          ),
+          labelText: label,
+          labelStyle: TextStyle(
+            fontSize: 18,
+            color: isEditing ? Color(0xFF003366) : Colors.white,
+          ),
+          filled: true,
+          fillColor: isEditing ? Colors.white : Color(0xFF003366),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(
+              color: Color(0xFF003366),
+              width: 2,
+            ),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(
+              color: Color(0xFF003366),
+              width: 2,
+            ),
+          ),
+          disabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(15),
+            borderSide: BorderSide(
+              color: Color(0xFF003366),
+              width: 2,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProfilePicture() {
+    ImageProvider? imageProvider;
+
+    if (adminPicUrl.isNotEmpty) {
+      if (adminPicUrl.startsWith('http')) {
+        imageProvider = NetworkImage(adminPicUrl);
+      } else {
+        imageProvider = FileImage(File(adminPicUrl));
+      }
+    } else if (userInfo != null &&
+        userInfo!['profilePic'] != null &&
+        userInfo!['profilePic'].trim().isNotEmpty) {
+      imageProvider =
+          NetworkImage(_constructImageUrl(userInfo!['profilePic'].trim()));
+    } else {
+      // Default placeholder if no image
+      return CircleAvatar(
+        radius: 65,
+        backgroundColor: Colors.white,
+        child: Icon(
+          Icons.person,
+          size: 80,
+          color: Color(0xFF003366),
+        ),
+      );
+    }
+
+    return CircleAvatar(
+      radius: 65,
+      backgroundImage: imageProvider,
+      backgroundColor: Colors.white,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Profile Page',
-            style: TextStyle(color: Colors.white, fontSize: 18)),
-        backgroundColor: Color(0xFF0F3460),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => adminDashboardPage.AdminDashboardPage()),
+          ),
+        ),
         actions: [
           IconButton(
-            icon: Icon(Icons.notifications, color: Colors.white),
+            icon: Icon(Icons.notifications, color: Colors.black),
             onPressed: () {
               Navigator.push(
                 context,
@@ -358,7 +462,7 @@ class _ProfilePageState extends State<ProfilePage> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.chat, color: Colors.white),
+            icon: Icon(Icons.chat, color: Colors.black),
             onPressed: () {
               // Navigator.pushReplacement(
               //   //context
@@ -367,7 +471,7 @@ class _ProfilePageState extends State<ProfilePage> {
             },
           ),
           IconButton(
-            icon: Icon(Icons.account_circle, color: Colors.white),
+            icon: Icon(Icons.account_circle, color: Colors.black),
             onPressed: () {
               // Navigate to the profile page (current page)
             },
@@ -375,94 +479,204 @@ class _ProfilePageState extends State<ProfilePage> {
         ],
       ),
       drawer: _buildDrawer(),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          child: Column(
-            children: [
-              CircleAvatar(
-                radius: 35,
-                backgroundColor: Colors.white,
-                backgroundImage: adminPicUrl.isNotEmpty
-                    ? NetworkImage(
-                        adminPicUrl) // If the profile pic URL exists, display the image
-                    : null,
-                child: adminPicUrl.isEmpty
-                    ? Icon(
-                        Icons.person,
-                        size: 50,
-                        color: Color(0xFF0F3460),
-                      )
-                    : null,
+      body: isLoading
+          ? Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        height: 220,
+                        decoration: BoxDecoration(
+                          color: Color(0xFF003366),
+                          borderRadius: BorderRadius.only(
+                            bottomLeft: Radius.elliptical(400, 150),
+                            bottomRight: Radius.elliptical(400, 150),
+                          ),
+                        ),
+                      ),
+                      Positioned(
+                          top: 10,
+                          left: 10,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                isCancelOrSave = true;
+                                isEditing = true;
+                              });
+                            },
+                            child: Row(
+                              children: [
+                                Icon(Icons.edit, color: Colors.white, size: 24),
+                                SizedBox(width: 5),
+                                Text(
+                                  "Edit Profile",
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          )),
+                      Positioned(
+                        top: 140,
+                        left: 0,
+                        right: 0,
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(1),
+                              decoration: BoxDecoration(
+                                color: Color(0xFF003366),
+                                shape: BoxShape.circle,
+                              ),
+                              child: _buildProfilePicture(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 15),
+                  Padding(
+                    padding: EdgeInsets.only(left: 95),
+                    child: GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          isEditing = true;
+                          isCancelOrSave = true;
+                        });
+                        _pickImage();
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(1),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Color(0xFF003366),
+                            width: 1,
+                          ),
+                        ),
+                        child: CircleAvatar(
+                          radius: 15,
+                          backgroundColor: Colors.white,
+                          child: Icon(
+                            Icons.camera_alt,
+                            size: 20,
+                            color: Colors.grey[700],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 20),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                    child: Column(
+                      children: [
+                        _buildTextField(
+                          label: 'User Name',
+                          controller: usernameController,
+                          icon: Icons.person,
+                        ),
+                        _buildTextField(
+                          label: 'Full Name',
+                          controller: fullNameController,
+                          icon: Icons.person,
+                        ),
+                        _buildTextField(
+                          label: 'Bio',
+                          controller: bioController,
+                          icon: Icons.article_outlined,
+                        ),
+                        _buildTextField(
+                          label: 'Email',
+                          controller: emailController,
+                          icon: Icons.email,
+                        ),
+                        _buildTextField(
+                          label: 'Phone Number',
+                          controller: phoneController,
+                          icon: Icons.phone,
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            _showChangePasswordDialog();
+                            setState(() {
+                              _isChangePassword = true;
+                            });
+                          },
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                'Change password',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  color: Color(0xFF003366),
+                                ),
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                color: Color(0xFF003366),
+                              )
+                            ],
+                          ),
+                        )
+                      ],
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  if (isEditing) // Conditional rendering of the button Row
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        SizedBox(
+                          width: 120,
+                          child: ElevatedButton(
+                            onPressed: _cancelChanges,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Color(0xFF003366),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                vertical: 12,
+                                horizontal: 32,
+                              ),
+                            ),
+                            child: Text('CANCEL'),
+                          ),
+                        ),
+                        SizedBox(width: 10),
+                        SizedBox(
+                          width: 120,
+                          child: ElevatedButton(
+                            onPressed: _saveChanges,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Color(0xFF003366),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                              padding: EdgeInsets.symmetric(
+                                vertical: 12,
+                                horizontal: 32,
+                              ),
+                            ),
+                            child: Text('SAVE'),
+                          ),
+                        ),
+                      ],
+                    ),
+                  SizedBox(height: 20),
+                ],
               ),
-              IconButton(
-                icon: Icon(Icons.edit, color: Colors.blue),
-                onPressed: _pickImage, // Trigger the method to pick a new image
-              ),
-
-              // CircleAvatar(
-              //   radius: 35,
-              //   backgroundColor: Colors.white,
-              //   backgroundImage: adminPicUrl.isNotEmpty
-              //       ? NetworkImage(adminPicUrl) // Use fetched image URL
-              //       : null, // If no image URL, fallback to default icon
-              //   child:
-              //       adminPicUrl.isEmpty // Fallback to default icon if no image
-              //           ? Icon(
-              //               Icons.person,
-              //               size: 50,
-              //               color: Color(0xFF0F3460),
-              //             )
-              //           : null,
-              // ),
-
-              const SizedBox(height: 20),
-
-              // Profile Information Section
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildInfoField('Username', username, _usernameController),
-                    _buildInfoField('Email', email, _emailController),
-                    _buildInfoField('Full Name', fullName, _fullNameController),
-                    _buildInfoField(
-                        'Phone Number', phoneNumber, _phoneNumberController),
-                    _buildInfoField('Bio', bio, _bioController),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  _showChangePasswordDialog();
-                },
-                child: Text("Change Password"),
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-              ),
-              // Edit/Submit Button
-              if (!_isEditing) ...[
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      _isEditing = true;
-                    });
-                  },
-                  child: Text("Edit Profile"),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                ),
-              ] else ...[
-                ElevatedButton(
-                  onPressed: _saveChanges,
-                  child: Text("Submit Changes"),
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+            ),
     );
   }
 
@@ -483,8 +697,15 @@ class _ProfilePageState extends State<ProfilePage> {
                     radius: 35,
                     backgroundColor: Colors.white,
                     backgroundImage: adminPicUrl.isNotEmpty
-                        ? NetworkImage(adminPicUrl) // Use fetched image URL
-                        : null, // If no image URL, fallback to default icon
+                        ? FileImage(File(adminPicUrl))
+                        : userInfo != null &&
+                                userInfo!['profilePic'] != null &&
+                                userInfo!['profilePic'].trim().isNotEmpty
+                            ? NetworkImage(
+                                _constructImageUrl(
+                                    userInfo!['profilePic'].trim()),
+                              )
+                            : null,
                     child: adminPicUrl
                             .isEmpty // Fallback to default icon if no image
                         ? Icon(
@@ -571,49 +792,6 @@ class _ProfilePageState extends State<ProfilePage> {
       leading: Icon(icon, color: Colors.white),
       title: Text(text, style: TextStyle(color: Colors.white)),
       onTap: () => onTap(),
-    );
-  }
-
-  // Widget _buildInfoField(String label, String controller) {
-  //   return Column(
-  //     crossAxisAlignment: CrossAxisAlignment.start,
-  //     children: [
-  //       Text(controller,
-  //           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-  //       TextField(
-  //         controller: label.,
-  //         enabled: _isEditing,
-  //         decoration: InputDecoration(
-  //           hintText: label,
-  //           border: OutlineInputBorder(),
-  //         ),
-  //       ),
-  //       const SizedBox(height: 10),
-  //     ],
-  //   );
-  // }
-  Widget _buildInfoField(
-      String label, String value, TextEditingController controller) {
-    // Set the controller's text to the value passed in
-    controller.text = value;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
-        ),
-        TextField(
-          controller: controller, // Use the controller to manage the input
-          enabled: _isEditing,
-          decoration: InputDecoration(
-            hintText: label,
-            border: OutlineInputBorder(),
-          ),
-        ),
-        const SizedBox(height: 10),
-      ],
     );
   }
 }
