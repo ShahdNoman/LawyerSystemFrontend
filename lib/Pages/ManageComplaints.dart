@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:firstproj/Pages/AdminDashboardPage.dart' as adminDashboardPage;
-import 'package:firstproj/Pages/ManageClients.dart' as manageClients;
-import 'package:firstproj/Pages/ManageComplaints.dart' as manageComplaints;
-import 'package:firstproj/Pages/LegalDocuments.dart' as legalDocuments;
-import 'package:firstproj/Pages/Reports.dart' as reports;
-import 'package:firstproj/Pages/Billing.dart' as billing;
-import 'package:firstproj/Pages/Notifications.dart' as notifications;
-import 'package:firstproj/Pages/ManageCases.dart' as manageCases;
+import 'AdminDashboardPage.dart' as adminDashboardPage;
+import 'ManageClients.dart' as manageClients;
+import 'ManageComplaints.dart' as manageComplaints;
+import 'LegalDocuments.dart' as legalDocuments;
+import 'ManageCases.dart' as manageCases;
 import 'package:hive_flutter/hive_flutter.dart';
 
 const Color blueColor = Color(0xFF1E88E5);
 
 class ManageComplaints extends StatefulWidget {
+  const ManageComplaints({super.key});
+
   @override
   _ManageComplaintsState createState() => _ManageComplaintsState();
 }
@@ -429,7 +428,7 @@ class _ManageComplaintsState extends State<ManageComplaints> {
   }
 
   void _showDeleteComplaintDialog() {
-    final TextEditingController _controller = TextEditingController();
+    final TextEditingController controller = TextEditingController();
 
     showDialog(
       context: context,
@@ -441,7 +440,7 @@ class _ManageComplaintsState extends State<ManageComplaints> {
             children: [
               const Text('Please enter the Complaint ID to delete:'),
               TextFormField(
-                controller: _controller,
+                controller: controller,
                 decoration:
                     const InputDecoration(hintText: 'Enter Complaint ID'),
                 keyboardType: TextInputType.number,
@@ -451,7 +450,7 @@ class _ManageComplaintsState extends State<ManageComplaints> {
           actions: [
             TextButton(
               onPressed: () {
-                String complaintId = _controller.text;
+                String complaintId = controller.text;
                 if (complaintId.isNotEmpty) {
                   _deleteComplaint(complaintId);
                   Navigator.pop(context);

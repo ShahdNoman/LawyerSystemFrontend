@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:firstproj/Pages/AdminDashboardPage.dart' as adminDashboardPage;
-import 'package:firstproj/Pages/ManageClients.dart' as manageClients;
-import 'package:firstproj/Pages/ManageComplaints.dart' as manageComplaints;
-import 'package:firstproj/Pages/LegalDocuments.dart' as legalDocuments;
-import 'package:firstproj/Pages/Reports.dart' as reports;
-import 'package:firstproj/Pages/Billing.dart' as billing;
-import 'package:firstproj/Pages/Notifications.dart' as notifications;
-import 'package:firstproj/Pages/ManageCases.dart' as manageCases;
+import 'AdminDashboardPage.dart' as adminDashboardPage;
+import 'ManageClients.dart' as manageClients;
+import 'ManageComplaints.dart' as manageComplaints;
+import 'LegalDocuments.dart' as legalDocuments;
+import 'ManageCases.dart' as manageCases;
 import 'package:hive_flutter/hive_flutter.dart';
 
 const Color blueColor = Color(0xFF1E88E5);
 
 class LegalDocuments extends StatefulWidget {
-  const LegalDocuments({Key? key}) : super(key: key);
+  const LegalDocuments({super.key});
 
   @override
   _LegalDocumentsState createState() => _LegalDocumentsState();
@@ -396,7 +393,7 @@ class _LegalDocumentsState extends State<LegalDocuments> {
   }
 
   void _showDeleteDocumentDialog() {
-    final TextEditingController _controller = TextEditingController();
+    final TextEditingController controller = TextEditingController();
 
     showDialog(
       context: context,
@@ -408,7 +405,7 @@ class _LegalDocumentsState extends State<LegalDocuments> {
             children: [
               const Text('Please enter the Document ID'),
               TextFormField(
-                controller: _controller,
+                controller: controller,
                 decoration: const InputDecoration(labelText: 'Document ID'),
               ),
             ],
@@ -416,7 +413,7 @@ class _LegalDocumentsState extends State<LegalDocuments> {
           actions: [
             TextButton(
               onPressed: () {
-                _deleteDocument(_controller.text);
+                _deleteDocument(controller.text);
                 Navigator.pop(context);
               },
               child: const Text('Delete'),

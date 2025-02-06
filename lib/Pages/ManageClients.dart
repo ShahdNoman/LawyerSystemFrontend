@@ -1,17 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'package:firstproj/Pages/AdminDashboardPage.dart' as adminDashboardPage;
-import 'package:firstproj/Pages/ManageClients.dart' as manageClients;
-import 'package:firstproj/Pages/ManageCases.dart' as manageCases;
-import 'package:firstproj/Pages/LegalDocuments.dart' as legalDocuments;
-import 'package:firstproj/Pages/Reports.dart' as reports;
-import 'package:firstproj/Pages/Billing.dart' as billing;
-import 'package:firstproj/Pages/Notifications.dart' as notifications;
+import 'dart:async';
+import 'ProfilePage.dart';
+import 'TokenUtils.dart';
+import 'AdminDashboardPage.dart' as adminDashboardPage;
+import 'ManageClients.dart' as manageClients;
+import 'ManageCases.dart' as manageCases;
+import 'Reports.dart' as reports;
+import 'Billing.dart' as billing;
+import 'Notifications1.dart' as notifications;
+import 'ChatPage.dart' as chat;
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:firstproj/Pages/ManageComplaints.dart' as manageComplaints;
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter/foundation.dart'; // Import to check if running on web
 
-const Color blueColor = Color(0xFF1E88E5);
+const Color blueColor = Color(0xFF0F3460);
+const Color backgroundColor = Colors.white;
+const Color lightBlueColor = Color(0xFF0F3460);
+
+// Example color theme
+Color primaryColor = Colors.blue;
+Color cardColor = Colors.white;
+Color shadowColor = Colors.black12;
 
 class ManageClients extends StatefulWidget {
   @override
@@ -19,68 +30,262 @@ class ManageClients extends StatefulWidget {
 }
 
 class _ManageClientsState extends State<ManageClients> {
-  bool isLoading = false;
+  bool isLoading = true;
   String fetchedData = '';
-  TextEditingController clientNameController = TextEditingController();
-  TextEditingController clientEmailController = TextEditingController();
-  TextEditingController clientRoleController = TextEditingController();
-  TextEditingController clientPhoneNumberController = TextEditingController();
-  TextEditingController clientFullNameController = TextEditingController();
-  TextEditingController clientMembershipNumberController =
+  late Timer _timer;
+  List<dynamic> filteredUsers = [];
+  List<dynamic> users = [];
+  String adminName = 'Admin'; // Default name
+  String adminEmail = 'admin@example.com'; // Default email
+  String adminPicUrl = ''; // To store the profile picture URL
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 30), (timer) {
+      TokenUtils.checkTokenExpiration(context);
+    });
+    _fetchAdminData();
+    _fetchUsers();
+    _searchController.addListener(() {
+      _onSearchChanged();
+    });
+  }
+
+  void _onSearchChanged() {
+    String searchTerm = _searchController.text.toLowerCase();
+
+    setState(() {
+      filteredUsers = users.where((user) {
+        return (user['email']?.toLowerCase().contains(searchTerm) ?? false) ||
+            (user['phone_number']?.toLowerCase().contains(searchTerm) ??
+                false) ||
+            (user['full_name']?.toLowerCase().contains(searchTerm) ?? false) ||
+            (user['membership_number']?.toLowerCase().contains(searchTerm) ??
+                false) ||
+            (user['judge_number']?.toLowerCase().contains(searchTerm) ??
+                false) ||
+            (user['id_number']?.toLowerCase().contains(searchTerm) ?? false) ||
+            (user['registration_date']?.toLowerCase().contains(searchTerm) ??
+                false) ||
+            (user['bio']?.toLowerCase().contains(searchTerm) ?? false);
+      }).toList();
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer.cancel();
+    _searchController.removeListener(_onSearchChanged);
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  final TextEditingController clientNameController = TextEditingController();
+  final TextEditingController clientEmailController = TextEditingController();
+  final TextEditingController clientRoleController = TextEditingController();
+  final TextEditingController clientPhoneNumberController = TextEditingController();
+  final TextEditingController clientFullNameController = TextEditingController();
+  final TextEditingController clientMembershipNumberController =
       TextEditingController();
-  TextEditingController clientUsernameController = TextEditingController();
-  TextEditingController clientIdToDeleteController = TextEditingController();
-  TextEditingController clientJudgeNumberController = TextEditingController();
-  TextEditingController clientIdNumberController = TextEditingController();
-  TextEditingController clientStatusController = TextEditingController();
-  TextEditingController clientPasswordController = TextEditingController();
-  String selectedStatus = 'Active'; // Declare selectedStatus here
+  final TextEditingController clientUsernameController = TextEditingController();
+  final TextEditingController clientIdToDeleteController = TextEditingController();
+  final TextEditingController clientJudgeNumberController = TextEditingController();
+  final TextEditingController clientIdNumberController = TextEditingController();
+  final TextEditingController clientStatusController = TextEditingController();
+  final TextEditingController clientPasswordController = TextEditingController();
+  final TextEditingController _searchController = TextEditingController();
+  String selectedStatus = 'Active';
+  bool _isHovered = false;
+
+  Future<Map<String, dynamic>> fetchAdminData(String token) async {
+    final String admindata = kIsWeb
+        ? 'http://192.168.0.186:4000/adminRoutes/get-my-info'
+        : 'http://10.0.2.2:4000/adminRoutes/get-my-info';
+
+    print("admindata is $admindata");
+
+    final response = await http.post(
+      Uri.parse(admindata),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body);
+    } else {
+      throw Exception(
+          'Failed to load admin data. Status Code: ${response.statusCode}');
+    }
+  }
+
+  Future<void> _fetchAdminData() async {
+    try {
+      var box = await Hive.openBox('userBox');
+      final token = box.get('token');
+
+      if (token == null || token.isEmpty) {
+        Navigator.pushReplacementNamed(context, '/');
+        return;
+      }
+
+      final data = await fetchAdminData(token);
+      setState(() {
+        isLoading = false;
+        adminName = data['user']['username'] ?? 'Admin';
+        adminEmail = data['user']['email'] ?? 'admin@example.com';
+        adminPicUrl = data['user']['profilePic'] ?? '';
+        adminPicUrl = _constructImageUrl(adminPicUrl);
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        fetchedData = 'Error fetching admin data: $e';
+      });
+    }
+  }
+
+  String errorMessage = '';
+  Future<void> _fetchUsers() async {
+    try {
+      var box = await Hive.openBox('userBox');
+      final token = box.get('token');
+
+      if (token == null || token.isEmpty) {
+        Navigator.pushReplacementNamed(context, '/');
+        return;
+      }
+
+      final List<dynamic> data = await fetchUsers(token);
+
+      setState(() {
+        users = data;
+        filteredUsers = List.from(users);
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+        errorMessage = 'Error fetching users: $e';
+      });
+      print('Error: $e');
+    }
+  }
+
+  Future<List<dynamic>> fetchUsers(String token) async {
+    final String userdata = kIsWeb
+        ? 'http://192.168.0.186:4000/adminRoutes/viewAll-users'
+        : 'http://10.0.2.2:4000/adminRoutes/viewAll-users';
+
+    print("userdata is $userdata");
+
+    final response = await http.get(
+      Uri.parse(userdata),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    print('Response status: ${response.statusCode}');
+    print('Response body: ${response.body}');
+
+    if (response.statusCode == 200) {
+      return json.decode(response.body) as List<dynamic>;
+    } else {
+      throw Exception(
+          'Failed to load admin data. Status Code: ${response.statusCode}');
+    }
+  }
+
+  void _filterUsers() {
+    final query = _searchController.text.toLowerCase();
+    setState(() {
+      filteredUsers = users.where((user) {
+        return user.values
+            .any((value) => value.toString().toLowerCase().contains(query));
+      }).toList();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Manage Clients')),
-      drawer: _buildDrawer(), // Adding Drawer here
-      body: _buildManageClientsForm(),
+    return LayoutBuilder(builder: (context, constraints) {
+      bool isMobile = constraints.maxWidth < 700;
+      return Scaffold(
+        appBar: _buildAppBar(isMobile),
+        drawer: isMobile ? _buildDrawer(isMobile) : null,
+        body: _buildBody(isMobile, constraints),
+      );
+    });
+  }
+
+  PreferredSizeWidget _buildAppBar(bool isMobile) {
+    return AppBar(
+      title: const Text(
+        'Manage Clients',
+        style: TextStyle(color: Colors.white, fontSize: 18),
+      ),
+      backgroundColor: const Color.fromARGB(255, 1, 25, 65),
     );
   }
 
-  Widget _buildDrawer() {
+  Widget _buildBody(bool isMobile, BoxConstraints constraints) {
+    return Row(
+      children: [
+        if (!isMobile) _buildDrawer(isMobile),
+        Expanded(child: _buildClientContent(isMobile, constraints))
+      ],
+    );
+  }
+
+  Widget _buildDrawer(bool isMobile) {
     return Drawer(
       child: Container(
-        color: Color(0xFF0F3460),
+        width: isMobile ? null : 250,
+        color: const Color.fromARGB(255, 1, 25, 65),
         child: ListView(
           children: [
             DrawerHeader(
-              decoration: BoxDecoration(
-                color: Color(0xFFADD8E6),
+              decoration: const BoxDecoration(
+                color: Color.fromARGB(255, 1, 25, 65),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   CircleAvatar(
-                    radius: 35,
+                    radius: isMobile ? 30 : 35,
                     backgroundColor: Colors.white,
-                    child: Icon(
-                      Icons.person,
-                      size: 50,
-                      color: Color(0xFF0F3460),
-                    ),
+                    backgroundImage: adminPicUrl.isNotEmpty
+                        ? NetworkImage(adminPicUrl.trim())
+                        : null,
+                    child: adminPicUrl.isEmpty
+                        ? Icon(
+                            Icons.person,
+                            size: isMobile ? 40 : 50,
+                            color: const Color(0xFF0F3460),
+                          )
+                        : null,
                   ),
                   const SizedBox(height: 10),
-                  const Text(
-                    'Welcome, Admin!',
+                  Text(
+                    adminName,
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 20,
+                      fontSize: isMobile ? 16 : 20,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const Text(
-                    'admin@example.com',
+                  Text(
+                    adminEmail,
                     style: TextStyle(
                       color: Colors.white70,
-                      fontSize: 14,
+                      fontSize: isMobile ? 12 : 14,
                     ),
                   ),
                 ],
@@ -111,20 +316,24 @@ class _ManageClientsState extends State<ManageClients> {
                 ),
               );
             }),
-            _buildDrawerItem('Manage Complaints', Icons.library_books, () {
+            _buildDrawerItem('Notifications', Icons.notifications, () {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => manageComplaints.ManageComplaints(),
-                ),
+                    builder: (context) =>
+                         notifications.NotificationPage()),
               );
             }),
-            _buildDrawerItem('Legal Documents', Icons.document_scanner, () {
+            _buildDrawerItem('Chat', Icons.chat, () {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(
-                  builder: (context) => const legalDocuments.LegalDocuments(),
-                ),
+                MaterialPageRoute(builder: (context) => chat.ChatPage()),
+              );
+            }),
+            _buildDrawerItem('Admin Profile', Icons.account_circle, () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => ProfilePage()),
               );
             }),
             _buildDrawerItem('Logout', Icons.logout, () {
@@ -139,88 +348,475 @@ class _ManageClientsState extends State<ManageClients> {
   Widget _buildDrawerItem(String title, IconData icon, VoidCallback onTap) {
     return ListTile(
       leading: Icon(icon, color: Colors.white),
-      title: Text(title, style: TextStyle(color: Colors.white)),
+      title: Text(title, style: const TextStyle(color: Colors.white)),
       onTap: onTap,
     );
   }
 
-  Widget _buildManageClientsForm() {
-    return ListView(
-      padding: const EdgeInsets.all(16.0),
-      children: [
-        // First Card (Add)
-        Card(
-          color: Colors.green,
-          elevation: 4.0,
-          child: ListTile(
-            contentPadding: EdgeInsets.all(16.0),
-            title: Text(
-              'Add New Admin',
-              style: TextStyle(
-                fontSize: 18.0,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            trailing: Icon(Icons.add, color: Colors.white),
-            onTap: () {
-              _showAddClientDialog();
-            },
-          ),
-        ),
-        SizedBox(height: 16.0),
-
-        // Second Card (Update)
-        Card(
-          color: Colors.yellow,
-          elevation: 4.0,
-          child: ListTile(
-            contentPadding: EdgeInsets.all(16.0),
-            title: Text(
-              'Update Client Status',
-              style: TextStyle(
-                fontSize: 18.0,
-                color: Colors.black,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            trailing: Icon(Icons.update, color: Colors.black),
-            onTap: () {
-              _showUpdateClientDialog();
-            },
-          ),
-        ),
-        SizedBox(height: 16.0),
-
-        // Third Card (Delete)
-        Card(
-          color: Colors.red,
-          elevation: 4.0,
-          child: ListTile(
-            contentPadding: EdgeInsets.all(16.0),
-            title: Text(
-              'Delete Client',
-              style: TextStyle(
-                fontSize: 18.0,
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            trailing: Icon(Icons.delete, color: Colors.white),
-            onTap: () {
-              _showDeleteClientDialog(); // No need to pass clientId here, since it will be entered in the dialog
-            },
-          ),
-        ),
-        SizedBox(height: 16.0),
-
-        // Loading or Fetched Data
-        isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : Text(fetchedData),
-      ],
+  void _showChatDialog(Map<String, dynamic> user) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => chat.ChatPage()),
     );
-    
+  }
+
+  void _showUserDetailsDialog(Map<String, dynamic> user) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: Column(
+            children: [
+              Stack(
+                children: [
+                  CircleAvatar(
+                    radius: 40,
+                    backgroundImage: _constructImageUrl(
+                                user['profile_picture']?.trim())
+                            .isNotEmpty
+                        ? NetworkImage(
+                            _constructImageUrl(user['profile_picture']?.trim()))
+                        : const AssetImage(
+                                'assets/images/default-profile.png')
+                            as ImageProvider,
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: user['status'] == 'Active'
+                            ? Colors.green
+                            : Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                user['username'] ?? 'User Details',
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+              Text(user['role'] ?? 'N/A'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDetailRow('Email:', user['email'] ?? 'N/A', Icons.email),
+                _buildDetailRow(
+                    'Phone:', user['phone_number'] ?? 'N/A', Icons.phone),
+                _buildDetailRow(
+                    'Full Name:', user['full_name'] ?? 'N/A', Icons.person),
+                _buildDetailRow('Membership Number:',
+                    user['membership_number'] ?? 'N/A', Icons.card_membership),
+                _buildDetailRow('Judge Number:', user['judge_number'] ?? 'N/A',
+                    Icons.gavel),
+                _buildDetailRow('ID Number:', user['id_number'] ?? 'N/A',
+                    Icons.perm_identity),
+                _buildDetailRow('Registration Date:',
+                    user['registration_date'] ?? 'N/A', Icons.date_range),
+                _buildDetailRow('Bio:', user['bio'] ?? 'N/A', Icons.info),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text("Close"),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showChatDialog(user);
+              },
+              child: const Text(
+                "Chat",
+                style: TextStyle(color: Colors.blue),
+              ),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _showDeleteConfirmationDialog(user['id'].toString());
+              },
+              child: const Text(
+                "Delete",
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildManageClientsForm(bool isMobile, BoxConstraints constraints) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: Column(
+          children: [
+            const SizedBox(height: 16),
+            _buildAdminHeader(),
+            const SizedBox(height: 16.0),
+            isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : errorMessage.isNotEmpty
+                    ? Center(child: Text(errorMessage))
+                    : (filteredUsers.isEmpty && users.isEmpty)
+                        ? const Center(child: Text("No users found."))
+                        : _buildUserList(isMobile),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAdminHeader() {
+    return Card(
+      elevation: 1,
+      color: cardColor,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            const Text("Manage Admins",
+                style: TextStyle(
+                    fontSize: 18.0,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87)),
+            _buildAddAdminButton(),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddAdminButton() {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12.0),
+        decoration: BoxDecoration(
+          color: primaryColor,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: shadowColor,
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: GestureDetector(
+          onTap: () {
+            _showAddClientDialog();
+          },
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.add, color: Colors.white, size: 18.0),
+              const SizedBox(width: 8.0),
+              AnimatedOpacity(
+                opacity: _isHovered ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 200),
+                child: const Text(
+                  'Add Admin',
+                  style: TextStyle(
+                      fontSize: 14.0,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUserList(bool isMobile) {
+    return SizedBox(
+      height: isMobile ? null : 650,
+      child: ListView.builder(
+        shrinkWrap: isMobile ? true : false,
+        physics: isMobile
+            ? const NeverScrollableScrollPhysics()
+            : const AlwaysScrollableScrollPhysics(),
+        itemCount:
+            filteredUsers.isNotEmpty ? filteredUsers.length : users.length,
+        itemBuilder: (context, index) {
+          final user =
+              filteredUsers.isNotEmpty ? filteredUsers[index] : users[index];
+          return _buildUserListItem(user);
+        },
+      ),
+    );
+  }
+
+  Widget _buildUserListItem(Map<String, dynamic> user) {
+    bool _isHovering = false;
+    return GestureDetector(
+      onTap: () => _showUserDetailsDialog(user),
+      child: MouseRegion(
+        onEnter: (event) => setState(() => _isHovering = true),
+        onExit: (event) => setState(() => _isHovering = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          transform: _isHovering
+              ? Matrix4.translationValues(0, -2, 0)
+              : Matrix4.identity(),
+          curve: Curves.easeInOut,
+          decoration: BoxDecoration(
+            color: _isHovering ? Colors.grey[50] : cardColor,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: _isHovering
+                ? [
+                    BoxShadow(
+                        color: shadowColor,
+                        blurRadius: 4,
+                        offset: const Offset(0, 2))
+                  ]
+                : null,
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 8),
+            child: ListTile(
+              leading: Stack(
+                alignment: Alignment.topRight,
+                children: [
+                  CircleAvatar(
+                    radius: 30,
+                    backgroundImage: _constructImageUrl(
+                                user['profile_picture']?.trim())
+                            .isNotEmpty
+                        ? NetworkImage(
+                            _constructImageUrl(user['profile_picture']?.trim()))
+                        : const AssetImage(
+                                'assets/images/default-profile.png')
+                            as ImageProvider,
+                  ),
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    child: Container(
+                      width: 12,
+                      height: 12,
+                      decoration: BoxDecoration(
+                        color: user['status'] == 'Active'
+                            ? Colors.green
+                            : Colors.grey,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              title: Text(
+                user['username'] ?? 'Unknown',
+                style:
+                    const TextStyle(fontWeight: FontWeight.w500, fontSize: 16),
+              ),
+              subtitle: Text(
+                user['role'] ?? 'N/A',
+                style: TextStyle(color: Colors.grey[600]),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildChatButton(user),
+                  const SizedBox(width: 6),
+                  _buildDeleteButton(user)
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildChatButton(Map<String, dynamic> user) {
+    return ElevatedButton(
+      onPressed: () => _showChatDialog(user),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: primaryColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        elevation: 0,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.chat, size: 12, color: Colors.white),
+          const SizedBox(width: 2),
+          const Text("Chat", style: TextStyle(fontSize: 10, color: Colors.white)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDeleteButton(Map<String, dynamic> user) {
+    return ElevatedButton(
+      onPressed: () => _showDeleteConfirmationDialog(user['id'].toString()),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.red,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        elevation: 0,
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.delete, size: 12, color: Colors.white),
+          const SizedBox(width: 2),
+          const Text("Delete", style: TextStyle(fontSize: 10, color: Colors.white)),
+        ],
+      ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog(String userId) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text("Confirm Delete"),
+          content: const Text("Are you sure you want to delete this user?"),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text("Cancel"),
+            ),
+            TextButton(
+              onPressed: () {
+                _deleteClient(userId);
+                print("User with ID $userId deleted.");
+                Navigator.pop(context);
+              },
+              child: const Text(
+                "Delete",
+                style: TextStyle(color: Colors.red),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value, IconData icon) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: Colors.blue, size: 20),
+          const SizedBox(width: 8.0),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, color: Colors.black54)),
+                const SizedBox(height: 4.0),
+                Text(value, style: const TextStyle(color: Colors.black)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClientContent(bool isMobile, BoxConstraints constraints) {
+    return Container(
+      color: backgroundColor,
+      child: Column(
+        children: [
+          _buildSearchRow(isMobile),
+          if (isLoading) const Center(child: CircularProgressIndicator()),
+          Expanded(
+            child: isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : users.isEmpty
+                    ? const Center(child: Text("No clients available."))
+                    : _buildManageClientsForm(isMobile, constraints),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSearchRow(bool isMobile) {
+    return Padding(
+      padding: const EdgeInsets.all(8.0),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: _searchController,
+              onChanged: (value) {
+                _onSearchChanged();
+              },
+              decoration: InputDecoration(
+                hintText: 'Search...',
+                prefixIcon: const Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(30),
+                  borderSide: const BorderSide(color: lightBlueColor),
+                ),
+              ),
+            ),
+          ),
+          if (isMobile) ...[
+            IconButton(
+              icon: const Icon(Icons.notifications, color: blueColor),
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) =>
+                           notifications.NotificationPage()),
+                );
+              },
+            ),
+            IconButton(
+              icon: const Icon(Icons.chat, color: blueColor),
+              onPressed: () {
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => chat.ChatPage()),
+                );
+              },
+            ),
+          ],
+          IconButton(
+            icon: const Icon(Icons.account_circle, color: blueColor),
+            onPressed: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => ProfilePage()),
+              );
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   void _showUpdateClientDialog() {
@@ -233,13 +829,12 @@ class _ManageClientsState extends State<ManageClients> {
             mainAxisSize: MainAxisSize.min,
             children: [
               TextFormField(
-                controller:
-                    clientIdNumberController, // For entering the client ID
+                controller: clientIdNumberController,
                 decoration: const InputDecoration(labelText: 'Client ID'),
               ),
               DropdownButtonFormField<String>(
                 value: clientStatusController.text.isEmpty
-                    ? 'Active' // Default value
+                    ? 'Active'
                     : clientStatusController.text,
                 onChanged: (String? newValue) {
                   setState(() {
@@ -259,60 +854,20 @@ class _ManageClientsState extends State<ManageClients> {
           actions: [
             TextButton(
               onPressed: () {
-                _updateClientStatus(
-                  clientIdNumberController.text,
-                  clientStatusController.text,
-                );
-                Navigator.pop(context);
-              },
-              child: const Text('Update'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Cancel'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _showDeleteClientDialog() {
-    final TextEditingController _controller = TextEditingController();
-
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete Client'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text('Please enter the Client ID to delete:'),
-              TextFormField(
-                controller: _controller,
-                decoration: const InputDecoration(hintText: 'Enter Client ID'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                String clientId = _controller.text;
-                if (clientId.isNotEmpty) {
-                  _deleteClient(clientId);
+                if (clientIdNumberController.text.isNotEmpty &&
+                    clientStatusController.text.isNotEmpty) {
+                  _updateClientStatus(
+                    clientIdNumberController.text,
+                    clientStatusController.text,
+                  );
                   Navigator.pop(context);
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Please enter a valid Client ID.')),
+                    const SnackBar(content: Text("Please fill all fields")),
                   );
                 }
               },
-              child: const Text('Delete'),
+              child: const Text('Update'),
             ),
             TextButton(
               onPressed: () {
@@ -334,8 +889,14 @@ class _ManageClientsState extends State<ManageClients> {
     var box = await Hive.openBox('userBox');
     String? token = box.get('token');
 
+    final String deleuser = kIsWeb
+        ? 'http://192.168.0.186:4000/adminRoutes/delete-user/$userId'
+        : 'http://10.0.2.2:4000/adminRoutes/delete-user/$userId';
+
+    print("deleuser is $deleuser");
+
     final response = await http.delete(
-      Uri.parse('http://10.0.2.2:4000/adminRoutes/delete-user/$userId'),
+      Uri.parse(deleuser),
       headers: {
         'Authorization': 'Bearer $token',
       },
@@ -348,6 +909,11 @@ class _ManageClientsState extends State<ManageClients> {
     if (response.statusCode == 200) {
       setState(() {
         fetchedData = 'Client deleted successfully!';
+        if (ScaffoldMessenger.of(context).mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Client deleted successfully!')),
+          );
+        }
       });
     } else {
       setState(() {
@@ -356,20 +922,21 @@ class _ManageClientsState extends State<ManageClients> {
     }
   }
 
-  Future<void> _addClient(String username, String password, String email,
-      String phoneNumber, String fullName, String status) async {
+  Future<void> _addClient(String username) async {
     setState(() {
       isLoading = true;
     });
 
-    if (username.isEmpty ||
-        password.isEmpty ||
-        email.isEmpty ||
-        phoneNumber.isEmpty ||
-        fullName.isEmpty ||
-        status.isEmpty) {
+    if (username.isEmpty) {
       setState(() {
         fetchedData = 'Please fill in all required fields.';
+
+        if (ScaffoldMessenger.of(context).mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Please fill in all required fields.')),
+          );
+        }
       });
       setState(() {
         isLoading = false;
@@ -383,26 +950,32 @@ class _ManageClientsState extends State<ManageClients> {
     if (token == null || token.isEmpty) {
       setState(() {
         fetchedData = 'No token provided. Please log in again.';
+        if (ScaffoldMessenger.of(context).mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('No token provided. Please log in again.')),
+          );
+        }
       });
       setState(() {
         isLoading = false;
       });
       return;
     }
+    final String creadmin = kIsWeb
+        ? 'http://192.168.0.186:4000/adminRoutes/create-admin'
+        : 'http://10.0.2.2:4000/adminRoutes/create-admin';
+
+    print("creadmin is $creadmin");
 
     final response = await http.post(
-      Uri.parse('http://10.0.2.2:4000/adminRoutes/create-admin'),
+      Uri.parse(creadmin),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
         'Authorization': 'Bearer $token',
       },
       body: jsonEncode(<String, String>{
         'username': username,
-        'password': password,
-        'email': email,
-        'phone_number': phoneNumber,
-        'full_name': fullName,
-        'status': status,
       }),
     );
 
@@ -410,9 +983,14 @@ class _ManageClientsState extends State<ManageClients> {
       isLoading = false;
     });
 
-    if (response.statusCode == 201) {
+    if (response.statusCode == 200) {
       setState(() {
-        fetchedData = 'Client added successfully!';
+        fetchedData = 'Admin added successfully!';
+        if (ScaffoldMessenger.of(context).mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Client added successfully!')),
+          );
+        }
       });
     } else {
       setState(() {
@@ -421,12 +999,27 @@ class _ManageClientsState extends State<ManageClients> {
     }
   }
 
+  String _constructImageUrl(String? relativePath) {
+    if (relativePath != null && relativePath.isNotEmpty) {
+      final String baseUrl;
+      if (kIsWeb) {
+        baseUrl = 'http://192.168.0.186:4000';
+      } else {
+        baseUrl = 'http://10.0.2.2:4000';
+      }
+       return '$baseUrl/${relativePath.trim().replaceAll(RegExp(r'^/'), '')}';
+    } else {
+      return '';
+    }
+  }
+
+
   void _showAddClientDialog() {
     showDialog(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Add Client'),
+          title: const Text('Add Admin'),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -434,37 +1027,6 @@ class _ManageClientsState extends State<ManageClients> {
                 TextFormField(
                   controller: clientUsernameController,
                   decoration: const InputDecoration(labelText: 'Username'),
-                ),
-                TextFormField(
-                  controller: clientPasswordController,
-                  decoration: const InputDecoration(labelText: 'Password'),
-                ),
-                TextFormField(
-                  controller: clientEmailController,
-                  decoration: const InputDecoration(labelText: 'Email'),
-                ),
-                TextFormField(
-                  controller: clientPhoneNumberController,
-                  decoration: const InputDecoration(labelText: 'Phone Number'),
-                ),
-                TextFormField(
-                  controller: clientFullNameController,
-                  decoration: const InputDecoration(labelText: 'Full Name'),
-                ),
-                DropdownButtonFormField<String>(
-                  value: selectedStatus,
-                  onChanged: (String? newValue) {
-                    setState(() {
-                      selectedStatus = newValue!;
-                    });
-                  },
-                  items: <String>['Active', 'Inactive']
-                      .map<DropdownMenuItem<String>>((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
                 ),
               ],
             ),
@@ -474,11 +1036,6 @@ class _ManageClientsState extends State<ManageClients> {
               onPressed: () {
                 _addClient(
                   clientUsernameController.text,
-                  clientPasswordController.text,
-                  clientEmailController.text,
-                  clientPhoneNumberController.text,
-                  clientFullNameController.text,
-                  selectedStatus,
                 );
                 Navigator.pop(context);
               },
@@ -504,8 +1061,14 @@ class _ManageClientsState extends State<ManageClients> {
     var box = await Hive.openBox('userBox');
     String? token = box.get('token');
 
+    final updauser = kIsWeb
+        ? 'http://192.168.0.186:4000/adminRoutes/update-user-status/$userId' // For Web (Chrome)
+        : 'http://10.0.2.2:4000/adminRoutes/update-user-status/$userId'; // For Android Emulator
+
+    print("updauser is $updauser");
+
     final response = await http.put(
-      Uri.parse('http://10.0.2.2:4000/adminRoutes/update-user-status/$userId'),
+      Uri.parse(updauser),
       headers: <String, String>{
         'Content-Type': 'application/json; charset=UTF-8',
         'Authorization': 'Bearer $token',
@@ -522,6 +1085,12 @@ class _ManageClientsState extends State<ManageClients> {
     if (response.statusCode == 200) {
       setState(() {
         fetchedData = 'Client status updated successfully!';
+        if (ScaffoldMessenger.of(context).mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text('Client status updated successfully!')),
+          );
+        }
       });
     } else {
       setState(() {
